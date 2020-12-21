@@ -1,0 +1,8 @@
+variables:
+  APP_NAME: th2-zephyr-data-service
+  DOCKER_PUBLISH_ENABLED: "true" # set "true" in actual project
+
+include:
+  - project: vivarium/th2/pipelines
+    ref: v2
+    file: /.gitlab-ci-common.yml
