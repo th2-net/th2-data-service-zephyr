@@ -16,11 +16,8 @@
 
 package com.exactpro.th2.dataservice.zephyr.model
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class JobResult(
-    val timeTaken: String,
-    val progress: Double,
-    val message: String
-)
+enum class JobType(
+    val value: String
+) {
+    ADD_TEST_TO_CYCLE("add_tests_to_cycle_job_progress")
+}

@@ -16,11 +16,6 @@
 
 package com.exactpro.th2.dataservice.zephyr.model
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class JobResult(
-    val timeTaken: String,
-    val progress: Double,
-    val message: String
+data class JobToken(
+    val jobProgressToken: String
 )

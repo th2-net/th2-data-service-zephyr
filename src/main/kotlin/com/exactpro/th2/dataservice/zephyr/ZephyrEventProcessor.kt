@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataservice.zephyr.model
+package com.exactpro.th2.dataservice.zephyr
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.exactpro.th2.dataprovider.grpc.EventData
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class JobResult(
-    val timeTaken: String,
-    val progress: Double,
-    val message: String
-)
+interface ZephyrEventProcessor {
+    suspend fun onEvent(event: EventData)
+}
