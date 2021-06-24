@@ -17,14 +17,25 @@
 package com.exactpro.th2.dataservice.zephyr.impl
 
 import com.exactpro.th2.dataservice.zephyr.ZephyrApiService
+import com.exactpro.th2.dataservice.zephyr.cfg.BaseAuth
+import com.exactpro.th2.dataservice.zephyr.cfg.Credentials
+import com.exactpro.th2.dataservice.zephyr.cfg.HttpLoggingConfiguration
+import com.exactpro.th2.dataservice.zephyr.cfg.JwtAuth
 import com.exactpro.th2.dataservice.zephyr.model.BaseCycle
 import com.exactpro.th2.dataservice.zephyr.model.BaseFolder
 import com.exactpro.th2.dataservice.zephyr.model.Cycle
+import com.exactpro.th2.dataservice.zephyr.model.CycleCreateResponse
+import com.exactpro.th2.dataservice.zephyr.model.CyclesById
+import com.exactpro.th2.dataservice.zephyr.model.Execution
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionRequest
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionResponse
+import com.exactpro.th2.dataservice.zephyr.model.ExecutionSearchResponse
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionStatus
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionUpdate
+import com.exactpro.th2.dataservice.zephyr.model.ExecutionUpdateRequest
+import com.exactpro.th2.dataservice.zephyr.model.ExecutionUpdateResponse
 import com.exactpro.th2.dataservice.zephyr.model.Folder
+import com.exactpro.th2.dataservice.zephyr.model.FolderCreateResponse
 import com.exactpro.th2.dataservice.zephyr.model.Issue
 import com.exactpro.th2.dataservice.zephyr.model.JobResult
 import com.exactpro.th2.dataservice.zephyr.model.JobToken
@@ -33,7 +44,9 @@ import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.TestRequest
 import com.exactpro.th2.dataservice.zephyr.model.Version
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.java.Java
+import io.ktor.client.features.auth.Auth
+import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
 import io.ktor.client.features.logging.LogLevel
@@ -53,47 +66,57 @@ import kotlin.coroutines.coroutineContext
 
 class ZephyrApiServiceImpl(
     url: String,
-    private val accessKey: String,
-    private val secretKey: String,
-    private val accountId: String
+    credentials: Credentials,
+    private val httpLogging: HttpLoggingConfiguration
 ) : ZephyrApiService {
     private val baseUrl: String = url.run { if (endsWith('/')) this else "$this/" }
-    private val client = HttpClient(CIO) {
-        install(JwtAuthentication) {
-            accessKey = this@ZephyrApiServiceImpl.accessKey
-            secretKey = this@ZephyrApiServiceImpl.secretKey
-            accountId = this@ZephyrApiServiceImpl.accountId
-            baseUrl = URI.create(this@ZephyrApiServiceImpl.baseUrl)
+    private val client = HttpClient(Java) {
+        when (credentials) {
+            is BaseAuth -> Auth {
+                basic {
+                    username = credentials.username
+                    password = credentials.key
+                    sendWithoutRequest = true
+                }
+            }
+            is JwtAuth -> install(JwtAuthentication) {
+                accessKey = credentials.accessKey
+                secretKey = credentials.secretKey
+                accountId = requireNotNull(credentials.accountId) { "accountId must be set" }
+                baseUrl = URI.create(this@ZephyrApiServiceImpl.baseUrl)
+            }
         }
         Json {
             serializer = JacksonSerializer()
         }
         Logging {
-            level = LogLevel.INFO
+            level = httpLogging.level
         }
     }
     private val baseApiUrl: String = "$baseUrl/$API_PREFIX"
 
     override suspend fun getCycle(cycleName: String, project: Project, version: Version): Cycle? {
         LOGGER.trace { "Getting cycle for with name '$cycleName'" }
-        val cycles = client.get<List<Cycle>>(URLBuilder("$baseApiUrl/cycles/search").apply {
+        val cycles = client.get<CyclesById>(URLBuilder("$baseApiUrl/cycle").apply {
             with(parameters) {
                 append(PROJECT_ID_PARAMETER, project.id.toString())
                 append(VERSION_ID_PARAMETER, version.id.toString())
             }
-        }.build())
+        }.build()).cycles
         LOGGER.debug { "Found ${cycles.size} cycle(s) for project ${project.key} and version $version" }
-        return cycles.find { it.name == cycleName }
+        return cycles
+            .asSequence()
+            .map { with(it.value) { Cycle(it.key, name, projectId, versionId) } }
+            .find { it.name == cycleName }
     }
 
-    override suspend fun getFolder(folderName: String, cycle: Cycle): Folder? {
+    override suspend fun getFolder(cycle: Cycle, folderName: String): Folder? {
         require(folderName.isNotEmpty()) { "Folder name must not be empty" }
         LOGGER.trace { "Getting folder $folderName for project ${cycle.projectId}, version ${cycle.versionId} and cycle ${cycle.name}" }
-        val folders = client.get<List<Folder>>(URLBuilder("$baseApiUrl/folders").apply {
+        val folders = client.get<List<Folder>>(URLBuilder("$baseApiUrl/cycle/${cycle.id}/folders").apply {
             with(parameters) {
                 append(PROJECT_ID_PARAMETER, cycle.projectId.toString())
                 append(VERSION_ID_PARAMETER, cycle.versionId.toString())
-                append(CYCLE_ID_PARAMETER, cycle.id)
             }
         }.build())
         LOGGER.debug { "Found ${folders.size} folder(s) for cycle ${cycle.name} in project ${cycle.projectId} and version ${cycle.versionId}" }
@@ -102,7 +125,7 @@ class ZephyrApiServiceImpl(
 
     override suspend fun createCycle(cycleName: String, project: Project, version: Version): Cycle {
         LOGGER.trace { "Creating cycle $cycleName for project ${project.key} and version $version" }
-        return client.post(Url("$baseApiUrl/cycle")) {
+        val response = client.post<CycleCreateResponse>(Url("$baseApiUrl/cycle")) {
             contentType(ContentType.Application.Json)
             body = BaseCycle(
                 name = cycleName,
@@ -110,11 +133,13 @@ class ZephyrApiServiceImpl(
                 versionId = version.id
             )
         }
+        LOGGER.debug { "Folder with id ${response.id} created" }
+        return client.get(Url("$baseApiUrl/cycle/${response.id}"))
     }
 
     override suspend fun getExecutionStatuses(): List<ExecutionStatus> {
         LOGGER.trace { "Getting execution statuses" }
-        return client.get(Url("$baseApiUrl/execution/statuses"))
+        return client.get(Url("$baseApiUrl/util/testExecutionStatus"))
     }
 
     override suspend fun createExecution(request: ExecutionRequest): ExecutionResponse {
@@ -125,36 +150,45 @@ class ZephyrApiServiceImpl(
         }
     }
 
-    override suspend fun updateExecution(update: ExecutionUpdate): ExecutionResponse {
+    override suspend fun updateExecution(update: ExecutionUpdate): ExecutionUpdateResponse {
         LOGGER.trace { "Updating execution $update" }
-        return client.put(Url("$baseApiUrl/execution/${update.id}")) {
+        return client.put(Url("$baseApiUrl/execution/${update.id}/execute")) {
             contentType(ContentType.Application.Json)
-            body = update
+            body = with(update) {
+                ExecutionUpdateRequest(
+                    status = status?.id,
+                    comment = comment,
+                    defects = defects
+                )
+            }
         }
     }
 
-    override suspend fun addTestToCycle(cycle: Cycle, test: Issue): JobResult {
+    override suspend fun addTestToCycle(cycle: Cycle, test: Issue): JobToken {
         LOGGER.trace { "Adding test $test to cycle ${cycle.name}" }
-        return client.post(Url("$baseApiUrl/executions/add/cycle/${cycle.id}")) {
+        return client.post(Url("$baseApiUrl/execution/addTestsToCycle")) {
             contentType(ContentType.Application.Json)
             body = TestRequest(
                 issues = listOf(test.key),
                 projectId = cycle.projectId,
                 versionId = cycle.versionId,
-                method = TestRequest.BY_KEYS
+                method = TestRequest.BY_KEYS,
+                cycleId = cycle.id,
             )
         }
     }
 
     override suspend fun addTestToFolder(folder: Folder, test: Issue): JobToken {
         LOGGER.trace { "Adding test $test to folder ${folder.name}" }
-        return client.post(Url("$baseApiUrl/executions/add/folder/${folder.id}")) {
+        return client.post(Url("$baseApiUrl/execution/addTestsToCycle")) {
             contentType(ContentType.Application.Json)
             body = TestRequest(
                 issues = listOf(test.key),
                 projectId = folder.projectId,
                 versionId = folder.versionId,
-                method = TestRequest.BY_KEYS
+                method = TestRequest.BY_KEYS,
+                cycleId = folder.cycleId,
+                folderId = folder.id,
             )
         }
     }
@@ -167,6 +201,10 @@ class ZephyrApiServiceImpl(
                     append(JOB_TYPE_PARAMETER, type.value)
                 }
             }.build())
+            // TODO:
+            //  the response contains information if the job done successfully or not.
+            //  But it is in HTML format and probably might change from request to request
+            //  We should check the response and report an error if it is done but with exception
             if (result.progress >= 1.0) {
                 break
             }
@@ -176,9 +214,33 @@ class ZephyrApiServiceImpl(
         }
     }
 
+    override suspend fun findExecution(project: Project, version: Version, cycle: Cycle, folder: Folder?, test: Issue): Execution? {
+        LOGGER.trace { "Searching for execution of issue ${test.key} for version $version in cycle ${cycle.name}${folder?.run { " folder $name" } ?: ""}" }
+        val response = client.get<ExecutionSearchResponse>(URLBuilder("$baseApiUrl/zql/executeSearch").apply {
+            with(parameters) {
+                val query = buildString {
+                    append("""project = "${project.name}" AND cycleName = "${cycle.name}" AND issue = "${test.key}" AND fixVersion = ${version.name}""")
+                    if (folder != null) {
+                        append(""" AND folderName = "${folder.name}"""")
+                    }
+                }
+                append(ZQL_QUERY_PARAMETER, query)
+            }
+        }.build())
+        val executions: List<Execution> = response.executions
+        LOGGER.debug { "Found ${executions.size} execution(s)" }
+        check(executions.size < 2) {
+            "Found more than one execution (${executions.size}) " +
+                "for specified parameters: project=${project.name} version=${version.name} test=${test.key} cycle=${cycle.name}" +
+                (folder?.run { " folder=${folder.name}" } ?: "")
+        }
+        return executions.firstOrNull()
+    }
+
     override suspend fun createFolder(cycle: Cycle, folderName: String): Folder {
+        require(folderName.isNotBlank()) { "folderName cannot be blank" }
         LOGGER.trace { "Creating folder $folderName in cycle ${cycle.name}" }
-        return client.post(Url("$baseApiUrl/folder")) {
+        return client.post<FolderCreateResponse>(Url("$baseApiUrl/folder/create")) {
             contentType(ContentType.Application.Json)
             body = BaseFolder(
                 name = folderName,
@@ -186,7 +248,7 @@ class ZephyrApiServiceImpl(
                 versionId = cycle.versionId,
                 cycleId = cycle.id
             )
-        }
+        }.toFolder(folderName)
     }
 
     override fun close() {
@@ -202,7 +264,8 @@ class ZephyrApiServiceImpl(
         private const val VERSION_ID_PARAMETER = "versionId"
         private const val CYCLE_ID_PARAMETER = "cycleId"
         private const val JOB_TYPE_PARAMETER = "type"
-        private const val API_PREFIX = "public/rest/api/1.0" // TODO: make configurable
+        private const val ZQL_QUERY_PARAMETER = "zqlQuery"
+        private const val API_PREFIX = "rest/zapi/latest" // TODO: make configurable
     }
 }
 

@@ -16,22 +16,36 @@
 
 package com.exactpro.th2.dataservice.zephyr.model
 
+import com.fasterxml.jackson.annotation.JsonAlias
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 open class BaseFolder(
-    val name: String,
+    @JsonAlias("folderName") val name: String,
     val projectId: Long,
     val versionId: Long,
     val cycleId: String,
     val description: String? = null
 )
 
-class Folder(
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class FolderCreateResponse(
     val id: String,
-    name: String,
+    val responseMessage: String,
+    val projectId: Long,
+    val versionId: Long,
+    val cycleId: String,
+) {
+    fun toFolder(name: String): Folder = Folder(id, name, projectId, versionId, cycleId)
+}
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+class Folder(
+    @JsonAlias("folderId") val id: String,
+    @JsonAlias("folderName") name: String,
     projectId: Long,
     versionId: Long,
     cycleId: String,
-    description: String?
+    description: String? = null
 ) : BaseFolder(name, projectId, versionId, cycleId, description)

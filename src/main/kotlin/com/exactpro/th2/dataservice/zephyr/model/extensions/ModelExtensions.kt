@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataservice.zephyr.model
+package com.exactpro.th2.dataservice.zephyr.model.extensions
 
-data class Issue(
-    val id: Long,
-    val key: String,
-    val projectKey: String
-)
+import com.exactpro.th2.dataservice.zephyr.model.Project
+import com.exactpro.th2.dataservice.zephyr.model.Version
+
+fun Project.findVersion(name: String): Version? = versions.find { it.name == name }

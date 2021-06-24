@@ -16,6 +16,8 @@
 
 package com.exactpro.th2.dataservice.zephyr.model
 
+import com.fasterxml.jackson.annotation.JsonAnySetter
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -31,4 +33,21 @@ open class BaseCycle(
     val name: String,
     val projectId: Long,
     val versionId: Long
+)
+
+class CyclesById {
+    var recordsCount: Int = -1
+    private val _cycles: MutableMap<String, BaseCycle> = hashMapOf()
+    @field:JsonIgnore
+    val cycles: Map<String, BaseCycle> = _cycles
+
+    @JsonAnySetter
+    fun setCycle(id: String, cycle: BaseCycle) {
+        _cycles[id] = cycle
+    }
+}
+
+data class CycleCreateResponse(
+    val id: String,
+    val responseMessage: String
 )

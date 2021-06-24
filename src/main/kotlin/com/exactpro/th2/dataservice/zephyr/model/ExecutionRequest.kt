@@ -19,31 +19,54 @@ package com.exactpro.th2.dataservice.zephyr.model
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class ExecutionRequest(
     val projectId: Long,
     val issueId: Long,
     val cycleId: String,
-    val versionId: Long = -1,
+    val versionId: Long,
+    val folderId: String? = null,
     val status: BaseExecutionStatus? = null
 )
 
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
 data class ExecutionUpdate(
     @get:JsonIgnore val id: String,
-    val projectId: Long,
-    val issueId: Long,
-    val cycleId: String,
-    val versionId: Long = -1,
     val status: BaseExecutionStatus? = null,
     val comment: String? = null,
     val defects: List<String> = emptyList()
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class ExecutionResponse(
-    val execution: Execution
+data class ExecutionUpdateResponse(
+    val id: String,
+    val projectId: Long,
+    val issueId: Long,
+    val cycleId: String,
+    val versionId: Long,
+    val executionStatus: Long
+)
+
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+data class ExecutionUpdateRequest(
+    val status: Long? = null,
+    val comment: String? = null,
+    val defects: List<String> = emptyList()
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+class ExecutionResponse {
+    @JsonUnwrapped
+    var executionById: Map<String, ExecutionUpdateResponse> = emptyMap()
+}
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ExecutionSearchResponse(
+    val executions: List<Execution>,
+    val currentIndex: Int = -1,
+    val totalCount: Int = -1,
+    val maxResultAllowed: Int = -1
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -52,5 +75,6 @@ data class Execution(
     val projectId: Long,
     val issueId: Long,
     val cycleId: String,
+    val versionId: Long,
     val status: ExecutionStatus
 )

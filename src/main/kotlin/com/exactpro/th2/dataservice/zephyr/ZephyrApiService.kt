@@ -22,6 +22,7 @@ import com.exactpro.th2.dataservice.zephyr.model.ExecutionRequest
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionResponse
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionStatus
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionUpdate
+import com.exactpro.th2.dataservice.zephyr.model.ExecutionUpdateResponse
 import com.exactpro.th2.dataservice.zephyr.model.Folder
 import com.exactpro.th2.dataservice.zephyr.model.Issue
 import com.exactpro.th2.dataservice.zephyr.model.JobResult
@@ -36,11 +37,12 @@ interface ZephyrApiService : AutoCloseable {
 
     suspend fun getExecutionStatuses(): List<ExecutionStatus>
     suspend fun createExecution(request: ExecutionRequest): ExecutionResponse
-    suspend fun updateExecution(update: ExecutionUpdate): ExecutionResponse
-    suspend fun addTestToCycle(cycle: Cycle, test: Issue): JobResult
+    suspend fun updateExecution(update: ExecutionUpdate): ExecutionUpdateResponse
+    suspend fun addTestToCycle(cycle: Cycle, test: Issue): JobToken
     suspend fun addTestToFolder(folder: Folder, test: Issue): JobToken
     suspend fun awaitJobDone(token: JobToken, type: JobType)
+    suspend fun findExecution(project: Project, version: Version, cycle: Cycle, folder: Folder?, test: Issue): Execution?
 
-    suspend fun getFolder(folderName: String, cycle: Cycle): Folder?
+    suspend fun getFolder(cycle: Cycle, folderName: String): Folder?
     suspend fun createFolder(cycle: Cycle, folderName: String): Folder
 }

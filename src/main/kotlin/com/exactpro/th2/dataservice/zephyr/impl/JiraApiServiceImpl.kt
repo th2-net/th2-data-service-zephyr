@@ -18,13 +18,15 @@ package com.exactpro.th2.dataservice.zephyr.impl
 
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
 import com.exactpro.th2.dataservice.zephyr.JiraApiService
+import com.exactpro.th2.dataservice.zephyr.cfg.BaseAuth
+import com.exactpro.th2.dataservice.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataservice.zephyr.model.AccountInfo
 import com.exactpro.th2.dataservice.zephyr.model.Issue
 import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.Version
 import io.atlassian.util.concurrent.Promise
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.java.Java
 import io.ktor.client.features.auth.Auth
 import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
@@ -45,22 +47,18 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class JiraApiServiceImpl(
-    private val uri: URI,
-    username: String,
-    apiKey: String,
+    private val uri: String,
+    private val auth: BaseAuth,
+    private val httpLogging: HttpLoggingConfiguration
 ) : JiraApiService {
-    init {
-        check(username.isNotBlank()) { "username cannot be blank" }
-        check(apiKey.isNotBlank()) { "apiKey cannot be blank" }
-    }
 
     private val api = AsynchronousJiraRestClientFactory()
-        .createWithBasicHttpAuthentication(uri, username, apiKey)
-    private val httpClient = HttpClient(CIO) {
+        .createWithBasicHttpAuthentication(URI.create(uri), auth.username, auth.key)
+    private val httpClient = HttpClient(Java) {
         Auth {
             basic {
-                this.username = username
-                this.password = apiKey
+                this.username = auth.username
+                this.password = auth.key
                 sendWithoutRequest = true // send in first request instead of sending it after getting 401 response
             }
         }
@@ -68,14 +66,14 @@ class JiraApiServiceImpl(
             serializer = JacksonSerializer()
         }
         Logging {
-            level = LogLevel.INFO
+            level = httpLogging.level
         }
     }
 
     override suspend fun accountInfo(): AccountInfo {
         LOGGER.trace { "Getting account info for current user" }
         return httpClient.get(
-            URLBuilder().takeFrom(uri).apply { path(REST_API_PREFIX, "myself") }.build()
+            URLBuilder().takeFrom(uri).apply { path(encodedPath, REST_API_PREFIX, "myself") }.build()
         )
     }
 
@@ -90,7 +88,7 @@ class JiraApiServiceImpl(
         check(issueKey.isNotBlank()) { "issue key cannot be blank" }
         LOGGER.trace { "Finding issue with key '$issueKey'" }
         return api.issueClient.getIssue(issueKey).await()
-            .run { Issue(id, key) }
+            .run { Issue(id, key, project.key) }
     }
 
     override fun close() {

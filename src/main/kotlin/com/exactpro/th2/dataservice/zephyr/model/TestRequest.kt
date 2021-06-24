@@ -16,13 +16,18 @@
 
 package com.exactpro.th2.dataservice.zephyr.model
 
+import com.fasterxml.jackson.annotation.JsonInclude
+
 typealias Method = String
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 class TestRequest(
     val issues: List<String>,
     val projectId: Long,
     val versionId: Long,
-    val method: Method
+    val method: Method,
+    val cycleId: String,
+    val folderId: String? = null
 ) {
     companion object {
         const val BY_KEYS: Method = "1"
