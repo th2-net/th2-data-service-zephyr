@@ -73,15 +73,20 @@ class ZephyrEventProcessorImpl(
 
             LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
             val issue: Issue = getIssue(eventName)
-            val parent: EventData? = if (event.hasParentEventId()) dataProvider.getEventSuspend(event.parentEventId) else null
+            val rootEvent: EventData? = findRootEvent(event)
             val project: Project = getProject(issue)
-            val (cycleName: String, version: Version) = getCycleNameAndVersion(parent, project, issue)
+            val folderEvent: EventData? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.parentEventId) {
+                dataProvider.getEventSuspend(event.parentEventId)
+            } else {
+                null
+            }
+            val (cycleName: String, version: Version) = getCycleNameAndVersion(rootEvent, project, issue)
 
             LOGGER.trace { "Getting cycle for event ${event.shortString}" }
             val cycle: Cycle = getOrCreateCycle(cycleName, project, version)
 
             LOGGER.trace { "Getting folder for event ${event.shortString}" }
-            val folder: Folder = getOrCreateFolder(cycle, issue)
+            val folder: Folder = getOrCreateFolder(cycle, folderEvent?.eventName, issue)
 
             LOGGER.trace { "Getting execution for event ${event.shortString}" }
             val execution = getOrCreateExecution(project, version, cycle, folder, issue)
@@ -95,6 +100,17 @@ class ZephyrEventProcessorImpl(
                 )
             )
         }
+    }
+
+    private suspend fun findRootEvent(event: EventData): EventData? {
+        if (!event.hasParentEventId()) {
+            return null
+        }
+        var curEvent: EventData = event
+        while (curEvent.hasParentEventId()) {
+            curEvent = dataProvider.getEventSuspend(curEvent.parentEventId)
+        }
+        return curEvent
     }
 
     private suspend fun getOrCreateExecution(
@@ -158,8 +174,8 @@ class ZephyrEventProcessorImpl(
         return key
     }
 
-    private suspend fun getOrCreateFolder(cycle: Cycle, issue: Issue): Folder {
-        val folderName = configuration.folders.asSequence()
+    private suspend fun getOrCreateFolder(cycle: Cycle, name: String?, issue: Issue): Folder {
+        val folderName = name ?: configuration.folders.asSequence()
             .filter { it.value.contains(issue.key) }
             .map { it.key }
             .first()
