@@ -1,22 +1,105 @@
 # Zephyr data service
 
-The project contains the base structure that is required for creation a th2-box.
+Zephyr data service synchronizes the test in th2 with Zephyr test.
+It searches for events that match format in the configuration and updates (or create new) executions.
 
-The minimal set of the required and useful dependencies is added to the `build.gradle` file.
 
-# What do you need to change?
+## Event tree
 
-If you are using this template for creating your own box please do the following steps before starting the actual development:
-+ Change the **rootProject.name** in `settings.gradle` file. The name **should not** contain the **th2** prefix;
-+ Change the **APP_NAME** in the `.gitlab-ci.yml` file. It should be the same as project name but with **th2** prefix;
-+ Change the value for **DOCKER_PUBLISH_ENABLED** in the `.gitlab-ci.yml` file to enable docker image publication;
-+ Change the package name from `template` to a different name. It probably should be the same as the box name;
-+ Correct the following block in the `build.gradle` file according to the previous step
-    ```groovy
-    application {
-        mainClass.set('com.exactpro.th2.template.BoxMain')
-    }
-    ```
+When the data service finds the event it tries to extract information about folder, version and cycle.
+It checks the event tree. It should have the following format
+
+```
+Root event with name `version|CycleName|Any other information you want`
+|- Sub event with folder name. _NOTE: if there are several sub events the closest one to the issue event will be taken_
+   |- TEST-1253  // the issue event. Its name must match the format in the configuration
+```
+
+## Configuration
+
+There is an example of full configuration for the data service
+
+```yaml
+apiVersion: th2.exactpro.com/v1
+kind: Th2Box
+metadata:
+  name: zephyr-service
+spec:
+  image-name: <image name>
+  image-version: <image version>
+  type: th2-act
+  pins:
+    - name: server
+      connection-type: grpc
+    - name: data-provider
+      connection-type: grpc
+  custom-config:
+    connection:
+      baseUrl: "https://your.jira.address.com"
+      jira:
+        username: "jira-user"
+        key: "you password" # or api key
+    dataService:
+      name: "ZephyrService"
+      versionMarker: "0.0.1"
+    syncParameters:
+      issueFormat: "QAP_\\d+"
+      delimiter: '|'
+      statusMapping:
+        SUCCESS: PASS
+        FAILED: WIP
+      jobAwaitTimeout: 1000
+    httpLogging:
+      level: INFO
+  extended-settings:
+    service:
+      enabled: true
+      type: NodePort
+      endpoints:
+        - name: 'grpc'
+          targetPort: 8080
+          nodePort: <free port>
+    resources:
+      limits:
+        memory: 200Mi
+        cpu: 200m
+      requests:
+        memory: 100Mi
+        cpu: 50m
+```
+
+### Parameters description
+
+#### connection
+
+Contains information about the endpoint ot connect
+
++ baseUrl - url to the Jira instance
++ jira - block contains credentials to connect to Jira
+    + username - the Jira username
+    + key - the Jira password or API key for authentication
+
+#### dataService
+
+Contains information about name and version for current data service. It is used to mark the events that already processed by this service
+
++ name - the data service name
++ versionMarker - the data service version
+
+#### syncParameters
+
+Contains parameters for synchronization with Zephyr
+
++ issueFormat - the regular expression to match the event that corresponds to the issue
++ delimiter - the delimiter to use to extract version and cycle from the root event
++ statusMapping - mapping between event status and status in Zephyr. **NOTE: mapping for SUCCESS and FAILED event statuses is required**
++ jobAwaitTimeout - the timeout to await the job for adding test to a cycle/folder
+
+#### httpLogging
+
+Contains parameters to set up the Logging for inner HTTP clients that are used to connect to the Jira and Zephyr
+
++ level - level logging for HTTP client. Available levels: **ALL**, **HEADER**, **BODY**, **INFO**, **NONE**
 
 # Useful links
 
