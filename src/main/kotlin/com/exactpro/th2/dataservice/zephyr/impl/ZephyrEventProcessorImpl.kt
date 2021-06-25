@@ -61,45 +61,47 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    override suspend fun onEvent(event: EventData) {
+    override suspend fun onEvent(event: EventData): Boolean {
         val eventName = event.eventName
         LOGGER.trace { "Processing event ${event.shortString}" }
-        if (isIssue(eventName)) {
-            LOGGER.trace { "Gathering status for run based on event ${event.shortString}" }
-            val runStatus: EventStatus = gatherExecutionStatus(event)
-            val executionStatus = checkNotNull(statusMapping[runStatus]) {
-                "Cannot find the status mapping for $runStatus"
-            }
-
-            LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
-            val issue: Issue = getIssue(eventName)
-            val rootEvent: EventData? = findRootEvent(event)
-            val project: Project = getProject(issue)
-            val folderEvent: EventData? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.parentEventId) {
-                dataProvider.getEventSuspend(event.parentEventId)
-            } else {
-                null
-            }
-            val (cycleName: String, version: Version) = getCycleNameAndVersion(rootEvent, project, issue)
-
-            LOGGER.trace { "Getting cycle for event ${event.shortString}" }
-            val cycle: Cycle = getOrCreateCycle(cycleName, project, version)
-
-            LOGGER.trace { "Getting folder for event ${event.shortString}" }
-            val folder: Folder = getOrCreateFolder(cycle, folderEvent?.eventName, issue)
-
-            LOGGER.trace { "Getting execution for event ${event.shortString}" }
-            val execution = getOrCreateExecution(project, version, cycle, folder, issue)
-            checkNotNull(execution) { "Cannot find and create the execution for test ${issue.key} in project ${project.name}, version ${version.name}" }
-
-            LOGGER.debug { "Updating execution for event ${event.shortString} with status $executionStatus" }
-            zephyr.updateExecution(
-                ExecutionUpdate(
-                    id = execution.id,
-                    status = executionStatus
-                )
-            )
+        if (!isIssue(eventName)) {
+            return false
         }
+        LOGGER.trace { "Gathering status for run based on event ${event.shortString}" }
+        val runStatus: EventStatus = gatherExecutionStatus(event)
+        val executionStatus = checkNotNull(statusMapping[runStatus]) {
+            "Cannot find the status mapping for $runStatus"
+        }
+
+        LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
+        val issue: Issue = getIssue(eventName)
+        val rootEvent: EventData? = findRootEvent(event)
+        val project: Project = getProject(issue)
+        val folderEvent: EventData? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.parentEventId) {
+            dataProvider.getEventSuspend(event.parentEventId)
+        } else {
+            null
+        }
+        val (cycleName: String, version: Version) = getCycleNameAndVersion(rootEvent, project, issue)
+
+        LOGGER.trace { "Getting cycle for event ${event.shortString}" }
+        val cycle: Cycle = getOrCreateCycle(cycleName, project, version)
+
+        LOGGER.trace { "Getting folder for event ${event.shortString}" }
+        val folder: Folder = getOrCreateFolder(cycle, folderEvent?.eventName, issue)
+
+        LOGGER.trace { "Getting execution for event ${event.shortString}" }
+        val execution = getOrCreateExecution(project, version, cycle, folder, issue)
+        checkNotNull(execution) { "Cannot find and create the execution for test ${issue.key} in project ${project.name}, version ${version.name}" }
+
+        LOGGER.debug { "Updating execution for event ${event.shortString} with status $executionStatus" }
+        zephyr.updateExecution(
+            ExecutionUpdate(
+                id = execution.id,
+                status = executionStatus
+            )
+        )
+        return true
     }
 
     private suspend fun findRootEvent(event: EventData): EventData? {

@@ -37,13 +37,12 @@ import com.nhaarman.mockitokotlin2.eq
 import com.nhaarman.mockitokotlin2.inOrder
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.same
-import com.nhaarman.mockitokotlin2.times
-import com.nhaarman.mockitokotlin2.verify
 import com.nhaarman.mockitokotlin2.whenever
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
@@ -129,7 +128,8 @@ class TestZephyrEventProcessorImpl {
             whenever(zephyr.findExecution(same(project), same(version), same(cycle), same(folder), argThat { key == "TEST-1234" }))
                 .thenReturn(null, execution)
 
-            processor.onEvent(issue)
+            val processed = processor.onEvent(issue)
+            Assertions.assertTrue(processed) { "The event for issue was not processed" }
 
             inOrder(jira, zephyr) {
                 verify(zephyr).getExecutionStatuses()
@@ -187,7 +187,8 @@ class TestZephyrEventProcessorImpl {
             whenever(zephyr.findExecution(same(project), same(version), same(cycle), same(folder), argThat { key == "TEST-1234" }))
                 .thenReturn(execution)
 
-            processor.onEvent(issue)
+            val processed = processor.onEvent(issue)
+            Assertions.assertTrue(processed) { "The event for issue was not processed" }
 
             inOrder(jira, zephyr) {
                 verify(zephyr).getExecutionStatuses()

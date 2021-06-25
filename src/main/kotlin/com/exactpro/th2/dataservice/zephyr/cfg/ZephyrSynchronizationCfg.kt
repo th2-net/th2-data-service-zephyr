@@ -21,10 +21,21 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.ktor.client.features.logging.LogLevel
 
 class ZephyrSynchronizationCfg(
+    val dataService: DataServiceCfg,
     val connection: ConnectionCfg,
     val syncParameters: EventProcessorCfg,
-    val httpLogging: HttpLoggingConfiguration
+    val httpLogging: HttpLoggingConfiguration = HttpLoggingConfiguration()
 )
+
+class DataServiceCfg(
+    val name: String = "Zephyr",
+    val versionMarker: String
+) {
+    init {
+        require(name.isNotBlank()) { "data service's name cannot be blank" }
+        require(versionMarker.isNotBlank()) { "data service's versionMarker cannot be blank" }
+    }
+}
 
 class HttpLoggingConfiguration(
     val level: LogLevel = LogLevel.INFO
