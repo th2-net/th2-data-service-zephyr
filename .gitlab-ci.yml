@@ -1,5 +1,5 @@
 variables:
-  APP_NAME: th2-zephyr-data-service
+  APP_NAME: th2-data-service-zephyr
   DOCKER_PUBLISH_ENABLED: "true" # set "true" in actual project
 
 include:

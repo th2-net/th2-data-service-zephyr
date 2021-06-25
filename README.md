@@ -1,4 +1,4 @@
-# Zephyr data service
+# Zephyr data service (0.0.1)
 
 Zephyr data service synchronizes the test in th2 with Zephyr test.
 It searches for events that match format in the configuration and updates (or create new) executions.
