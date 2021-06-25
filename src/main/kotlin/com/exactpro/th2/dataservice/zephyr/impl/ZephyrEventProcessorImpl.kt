@@ -32,7 +32,6 @@ import com.exactpro.th2.dataservice.zephyr.model.Execution
 import com.exactpro.th2.dataservice.zephyr.model.ExecutionUpdate
 import com.exactpro.th2.dataservice.zephyr.model.Folder
 import com.exactpro.th2.dataservice.zephyr.model.Issue
-import com.exactpro.th2.dataservice.zephyr.model.JobType
 import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.Version
 import com.exactpro.th2.dataservice.zephyr.model.extensions.findVersion
@@ -98,7 +97,8 @@ class ZephyrEventProcessorImpl(
         zephyr.updateExecution(
             ExecutionUpdate(
                 id = execution.id,
-                status = executionStatus
+                status = executionStatus,
+                comment = "Updated by th2 because of event with id: ${event.eventId.id}"
             )
         )
         return true
@@ -126,7 +126,7 @@ class ZephyrEventProcessorImpl(
             LOGGER.debug { "Adding the test ${issue.key} to folder ${folder.name}" }
             val jobToken = zephyr.addTestToFolder(folder, issue)
             withTimeout(configuration.jobAwaitTimeout) {
-                zephyr.awaitJobDone(jobToken, JobType.ADD_TEST_TO_CYCLE)
+                zephyr.awaitJobDone(jobToken)
             }
             zephyr.findExecution(project, version, cycle, folder, issue)
         }

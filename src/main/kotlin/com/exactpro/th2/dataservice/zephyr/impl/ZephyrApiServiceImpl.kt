@@ -43,13 +43,13 @@ import com.exactpro.th2.dataservice.zephyr.model.JobType
 import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.TestRequest
 import com.exactpro.th2.dataservice.zephyr.model.Version
+import com.exactpro.th2.dataservice.zephyr.model.ZephyrJob
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
 import io.ktor.client.features.auth.Auth
 import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
-import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -164,9 +164,9 @@ class ZephyrApiServiceImpl(
         }
     }
 
-    override suspend fun addTestToCycle(cycle: Cycle, test: Issue): JobToken {
+    override suspend fun addTestToCycle(cycle: Cycle, test: Issue): ZephyrJob {
         LOGGER.trace { "Adding test $test to cycle ${cycle.name}" }
-        return client.post(Url("$baseApiUrl/execution/addTestsToCycle")) {
+        val token = client.post<JobToken>(Url("$baseApiUrl/execution/addTestsToCycle")) {
             contentType(ContentType.Application.Json)
             body = TestRequest(
                 issues = listOf(test.key),
@@ -176,11 +176,12 @@ class ZephyrApiServiceImpl(
                 cycleId = cycle.id,
             )
         }
+        return ZephyrJob(token, JobType.ADD_TEST_TO_CYCLE)
     }
 
-    override suspend fun addTestToFolder(folder: Folder, test: Issue): JobToken {
+    override suspend fun addTestToFolder(folder: Folder, test: Issue): ZephyrJob {
         LOGGER.trace { "Adding test $test to folder ${folder.name}" }
-        return client.post(Url("$baseApiUrl/execution/addTestsToCycle")) {
+        val token = client.post<JobToken>(Url("$baseApiUrl/execution/addTestsToCycle")) {
             contentType(ContentType.Application.Json)
             body = TestRequest(
                 issues = listOf(test.key),
@@ -191,14 +192,15 @@ class ZephyrApiServiceImpl(
                 folderId = folder.id,
             )
         }
+        return ZephyrJob(token, JobType.ADD_TEST_TO_CYCLE)
     }
 
-    override suspend fun awaitJobDone(token: JobToken, type: JobType) {
-        LOGGER.trace { "Awaiting job $token with type $type is done" }
+    override suspend fun awaitJobDone(job: ZephyrJob) {
+        LOGGER.trace { "Awaiting job ${job.token} with type $job.type is done" }
         while (coroutineContext.isActive) {
-            val result = client.get<JobResult>(URLBuilder("$baseApiUrl/execution/jobProgress/${token.jobProgressToken}").apply {
+            val result = client.get<JobResult>(URLBuilder("$baseApiUrl/execution/jobProgress/${job.token.jobProgressToken}").apply {
                 with(parameters) {
-                    append(JOB_TYPE_PARAMETER, type.value)
+                    append(JOB_TYPE_PARAMETER, job.type.value)
                 }
             }.build())
             // TODO:
@@ -222,6 +224,8 @@ class ZephyrApiServiceImpl(
                     append("""project = "${project.name}" AND cycleName = "${cycle.name}" AND issue = "${test.key}" AND fixVersion = ${version.name}""")
                     if (folder != null) {
                         append(""" AND folderName = "${folder.name}"""")
+                    } else {
+                        append(" AND folderName is EMPTY")
                     }
                 }
                 append(ZQL_QUERY_PARAMETER, query)

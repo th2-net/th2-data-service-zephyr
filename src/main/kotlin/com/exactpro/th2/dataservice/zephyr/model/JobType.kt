@@ -21,3 +21,8 @@ enum class JobType(
 ) {
     ADD_TEST_TO_CYCLE("add_tests_to_cycle_job_progress")
 }
+
+data class ZephyrJob(
+    val token: JobToken,
+    val type: JobType
+)
