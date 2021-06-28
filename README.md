@@ -59,9 +59,11 @@ spec:
         - name: 'grpc'
           targetPort: 8080
           nodePort: <free port>
+    envVariables:
+      JAVA_TOOL_OPTIONS: '-XX:+ExitOnOutOfMemoryError -XX:+UseContainerSupport -XX:MaxRAMPercentage=85'
     resources:
       limits:
-        memory: 200Mi
+        memory: 250Mi
         cpu: 200m
       requests:
         memory: 100Mi
