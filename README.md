@@ -99,7 +99,7 @@ Contains parameters for synchronization with Zephyr
 
 Contains parameters to set up the Logging for inner HTTP clients that are used to connect to the Jira and Zephyr
 
-+ level - level logging for HTTP client. Available levels: **ALL**, **HEADER**, **BODY**, **INFO**, **NONE**
++ level - level logging for HTTP client. Available levels: **ALL**, **HEADERS**, **BODY**, **INFO**, **NONE**
 
 # Useful links
 
