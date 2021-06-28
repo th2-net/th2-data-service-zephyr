@@ -67,6 +67,7 @@ class ZephyrServiceImpl(
                 }
             }
             .build())
+        responseObserver.onCompleted()
     }
 
     override fun sendEvent(request: EventDataRequest, responseObserver: StreamObserver<EventResponse>) {
