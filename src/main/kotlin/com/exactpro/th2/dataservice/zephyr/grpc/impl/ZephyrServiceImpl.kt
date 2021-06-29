@@ -56,7 +56,7 @@ class ZephyrServiceImpl(
     private val lastEvent: MutableMap<CrawlerId, EventID> = ConcurrentHashMap()
 
     override fun crawlerConnect(request: CrawlerInfo, responseObserver: StreamObserver<Check2Info>) {
-        LOGGER.info { "Received handshake from crawler ${request.id}" }
+        LOGGER.info { "Received handshake from crawler ${request.id.toJson()}" }
         knownCrawlers += request.id
         responseObserver.onNext(Check2Info.newBuilder()
             .setName(configuration.name)
@@ -71,8 +71,13 @@ class ZephyrServiceImpl(
     }
 
     override fun sendEvent(request: EventDataRequest, responseObserver: StreamObserver<EventResponse>) {
+        LOGGER.trace { "Received request: ${request.toJson()}" }
         if (!knownCrawlers.contains(request.id)) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Unknown crawler ID ${request.id.toJson()}").asException())
+            LOGGER.warn { "Received request from unknown crawler with id ${request.id.toJson()}. Sending response with HandshakeRequired = true" }
+            responseObserver.onNext(EventResponse.newBuilder()
+                .setStatus(com.exactpro.th2.dataservice.grpc.Status.newBuilder().setHandshakeRequired(true))
+                .build())
+            responseObserver.onCompleted()
             return
         }
         val context = Context.current()
