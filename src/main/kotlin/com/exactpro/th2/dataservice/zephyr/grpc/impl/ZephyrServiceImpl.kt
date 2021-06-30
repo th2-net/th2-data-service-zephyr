@@ -46,13 +46,19 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.util.concurrent.ConcurrentHashMap
 import com.exactpro.th2.crawler.dataservice.grpc.Status as DataServiceResponseStatus
 
-class ZephyrServiceImpl(
+class ZephyrServiceImpl internal constructor(
     private val configuration: DataServiceCfg,
     private val processor: ZephyrEventProcessor,
     private val onInfo: (Event) -> Unit,
     private val onError: (EventData?, Throwable) -> Unit,
+    private val scope: CoroutineScope
 ) : DataServiceGrpc.DataServiceImplBase(), AutoCloseable {
-    private val scope = CoroutineScope(CoroutineName("ZephyrService") + SupervisorJob())
+    constructor(
+        configuration: DataServiceCfg,
+        processor: ZephyrEventProcessor,
+        onInfo: (Event) -> Unit,
+        onError: (EventData?, Throwable) -> Unit,
+    ) : this(configuration, processor, onInfo, onError,  CoroutineScope(CoroutineName("ZephyrService") + SupervisorJob()))
     private val knownCrawlers: MutableSet<CrawlerId> = ConcurrentHashMap.newKeySet()
     private val lastEvent: MutableMap<CrawlerId, EventID> = ConcurrentHashMap()
 
