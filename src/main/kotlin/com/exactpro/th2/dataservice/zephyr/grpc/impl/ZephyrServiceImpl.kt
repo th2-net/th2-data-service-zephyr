@@ -20,10 +20,10 @@ import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.EventData
-import com.exactpro.th2.dataservice.grpc.Check2Info
 import com.exactpro.th2.dataservice.grpc.CrawlerId
 import com.exactpro.th2.dataservice.grpc.CrawlerInfo
 import com.exactpro.th2.dataservice.grpc.DataServiceGrpc
+import com.exactpro.th2.dataservice.grpc.DataServiceInfo
 import com.exactpro.th2.dataservice.grpc.EventDataRequest
 import com.exactpro.th2.dataservice.grpc.EventResponse
 import com.exactpro.th2.dataservice.zephyr.ZephyrEventProcessor
@@ -55,10 +55,10 @@ class ZephyrServiceImpl(
     private val knownCrawlers: MutableSet<CrawlerId> = ConcurrentHashMap.newKeySet()
     private val lastEvent: MutableMap<CrawlerId, EventID> = ConcurrentHashMap()
 
-    override fun crawlerConnect(request: CrawlerInfo, responseObserver: StreamObserver<Check2Info>) {
+    override fun crawlerConnect(request: CrawlerInfo, responseObserver: StreamObserver<DataServiceInfo>) {
         LOGGER.info { "Received handshake from crawler ${request.id.toJson()}" }
         knownCrawlers += request.id
-        responseObserver.onNext(Check2Info.newBuilder()
+        responseObserver.onNext(DataServiceInfo.newBuilder()
             .setName(configuration.name)
             .setVersion(configuration.versionMarker)
             .apply {
