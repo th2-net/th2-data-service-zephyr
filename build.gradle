@@ -34,7 +34,7 @@ dependencies {
 
     // the library for interaction with infra API
     implementation 'com.exactpro.th2:common:3.16.3'
-    implementation 'com.exactpro.th2:grpc-crawler-data-service:0.0.1-check2_template-986260349-SNAPSHOT'
+    implementation 'com.exactpro.th2:grpc-crawler-data-service:0.0.1-check2_template-986370878-SNAPSHOT'
 
     // JIRA
     implementation group: 'com.atlassian.jira', name: 'jira-rest-java-client-core', version: '5.2.2'
