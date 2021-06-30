@@ -20,12 +20,12 @@ import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.EventData
-import com.exactpro.th2.dataservice.grpc.CrawlerId
-import com.exactpro.th2.dataservice.grpc.CrawlerInfo
-import com.exactpro.th2.dataservice.grpc.DataServiceGrpc
-import com.exactpro.th2.dataservice.grpc.DataServiceInfo
-import com.exactpro.th2.dataservice.grpc.EventDataRequest
-import com.exactpro.th2.dataservice.grpc.EventResponse
+import com.exactpro.th2.crawler.dataservice.grpc.CrawlerId
+import com.exactpro.th2.crawler.dataservice.grpc.CrawlerInfo
+import com.exactpro.th2.crawler.dataservice.grpc.DataServiceGrpc
+import com.exactpro.th2.crawler.dataservice.grpc.DataServiceInfo
+import com.exactpro.th2.crawler.dataservice.grpc.EventDataRequest
+import com.exactpro.th2.crawler.dataservice.grpc.EventResponse
 import com.exactpro.th2.dataservice.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataservice.zephyr.cfg.DataServiceCfg
 import io.grpc.Context
@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import org.apache.commons.lang3.exception.ExceptionUtils
 import java.util.concurrent.ConcurrentHashMap
+import com.exactpro.th2.crawler.dataservice.grpc.Status as DataServiceResponseStatus
 
 class ZephyrServiceImpl(
     private val configuration: DataServiceCfg,
@@ -75,7 +76,7 @@ class ZephyrServiceImpl(
         if (!knownCrawlers.contains(request.id)) {
             LOGGER.warn { "Received request from unknown crawler with id ${request.id.toJson()}. Sending response with HandshakeRequired = true" }
             responseObserver.onNext(EventResponse.newBuilder()
-                .setStatus(com.exactpro.th2.dataservice.grpc.Status.newBuilder().setHandshakeRequired(true))
+                .setStatus(DataServiceResponseStatus.newBuilder().setHandshakeRequired(true))
                 .build())
             responseObserver.onCompleted()
             return
