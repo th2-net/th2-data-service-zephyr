@@ -34,6 +34,7 @@ import com.exactpro.th2.dataservice.zephyr.model.Folder
 import com.exactpro.th2.dataservice.zephyr.model.Issue
 import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.Version
+import com.exactpro.th2.dataservice.zephyr.model.ZephyrJob
 import com.exactpro.th2.dataservice.zephyr.model.extensions.findVersion
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -87,7 +88,7 @@ class ZephyrEventProcessorImpl(
         val cycle: Cycle = getOrCreateCycle(cycleName, project, version)
 
         LOGGER.trace { "Getting folder for event ${event.shortString}" }
-        val folder: Folder = getOrCreateFolder(cycle, folderEvent?.eventName, issue)
+        val folder: Folder? = getOrCreateFolderIfNeeded(cycle, folderEvent?.eventName, issue)
 
         LOGGER.trace { "Getting execution for event ${event.shortString}" }
         val execution = getOrCreateExecution(project, version, cycle, folder, issue)
@@ -119,17 +120,30 @@ class ZephyrEventProcessorImpl(
         project: Project,
         version: Version,
         cycle: Cycle,
-        folder: Folder,
+        folder: Folder?,
         issue: Issue
     ): Execution? {
         return zephyr.findExecution(project, version, cycle, folder, issue) ?: run {
-            LOGGER.debug { "Adding the test ${issue.key} to folder ${folder.name}" }
-            val jobToken = zephyr.addTestToFolder(folder, issue)
+            val job = if (folder == null) {
+                addTestToCycle(issue, cycle)
+            } else {
+                addTestToFolder(issue, folder)
+            }
             withTimeout(configuration.jobAwaitTimeout) {
-                zephyr.awaitJobDone(jobToken)
+                zephyr.awaitJobDone(job)
             }
             zephyr.findExecution(project, version, cycle, folder, issue)
         }
+    }
+
+    private suspend fun addTestToFolder(issue: Issue, folder: Folder): ZephyrJob {
+        LOGGER.debug { "Adding the test ${issue.key} to folder ${folder.name}" }
+        return zephyr.addTestToFolder(folder, issue)
+    }
+
+    private suspend fun addTestToCycle(issue: Issue, cycle: Cycle): ZephyrJob {
+        LOGGER.debug { "Adding the test ${issue.key} to cycle ${cycle.name}" }
+        return zephyr.addTestToCycle(cycle, issue)
     }
 
     private suspend fun getProject(issue: Issue): Project {
@@ -176,11 +190,11 @@ class ZephyrEventProcessorImpl(
         return key
     }
 
-    private suspend fun getOrCreateFolder(cycle: Cycle, name: String?, issue: Issue): Folder {
+    private suspend fun getOrCreateFolderIfNeeded(cycle: Cycle, name: String?, issue: Issue): Folder? {
         val folderName = name ?: configuration.folders.asSequence()
             .filter { it.value.contains(issue.key) }
             .map { it.key }
-            .first()
+            .firstOrNull() ?: return null
         return zephyr.getFolder(cycle, folderName) ?: run {
             LOGGER.debug { "Creating folder $folderName for cycle ${cycle.name}" }
             zephyr.createFolder(cycle, folderName)
