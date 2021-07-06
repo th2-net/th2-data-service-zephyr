@@ -77,7 +77,7 @@ class ZephyrEventProcessorImpl(
         val issue: Issue = getIssue(eventName)
         val rootEvent: EventData? = findRootEvent(event)
         val project: Project = getProject(issue)
-        val folderEvent: EventData? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.parentEventId) {
+        val folderEvent: EventData? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.eventId) {
             dataProvider.getEventSuspend(event.parentEventId)
         } else {
             null

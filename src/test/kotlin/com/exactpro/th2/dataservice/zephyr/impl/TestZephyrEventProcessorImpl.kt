@@ -37,6 +37,7 @@ import com.nhaarman.mockitokotlin2.eq
 import com.nhaarman.mockitokotlin2.inOrder
 import com.nhaarman.mockitokotlin2.isNull
 import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.never
 import com.nhaarman.mockitokotlin2.same
 import com.nhaarman.mockitokotlin2.whenever
 import io.grpc.stub.StreamObserver
@@ -244,6 +245,7 @@ class TestZephyrEventProcessorImpl {
                 verify(jira).issueByKey("TEST-1234")
                 verify(jira).projectByKey("TEST")
                 verify(zephyr).getCycle(eq("TestCycle"), any(), any())
+                verify(zephyr, never()).getFolder(same(cycle), any())
                 verify(zephyr).findExecution(any(), any(), any(), isNull(), any())
                 verify(zephyr).addTestToCycle(same(cycle), any())
                 verify(zephyr).findExecution(any(), any(), any(), isNull(), any())
