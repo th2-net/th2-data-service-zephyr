@@ -20,12 +20,12 @@ import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.EventData
-import com.exactpro.th2.dataservice.grpc.Check2Info
-import com.exactpro.th2.dataservice.grpc.CrawlerId
-import com.exactpro.th2.dataservice.grpc.CrawlerInfo
-import com.exactpro.th2.dataservice.grpc.DataServiceGrpc
-import com.exactpro.th2.dataservice.grpc.EventDataRequest
-import com.exactpro.th2.dataservice.grpc.EventResponse
+import com.exactpro.th2.crawler.dataservice.grpc.CrawlerId
+import com.exactpro.th2.crawler.dataservice.grpc.CrawlerInfo
+import com.exactpro.th2.crawler.dataservice.grpc.DataServiceGrpc
+import com.exactpro.th2.crawler.dataservice.grpc.DataServiceInfo
+import com.exactpro.th2.crawler.dataservice.grpc.EventDataRequest
+import com.exactpro.th2.crawler.dataservice.grpc.EventResponse
 import com.exactpro.th2.dataservice.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataservice.zephyr.cfg.DataServiceCfg
 import io.grpc.Context
@@ -44,21 +44,28 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import org.apache.commons.lang3.exception.ExceptionUtils
 import java.util.concurrent.ConcurrentHashMap
+import com.exactpro.th2.crawler.dataservice.grpc.Status as DataServiceResponseStatus
 
-class ZephyrServiceImpl(
+class ZephyrServiceImpl internal constructor(
     private val configuration: DataServiceCfg,
     private val processor: ZephyrEventProcessor,
     private val onInfo: (Event) -> Unit,
     private val onError: (EventData?, Throwable) -> Unit,
+    private val scope: CoroutineScope
 ) : DataServiceGrpc.DataServiceImplBase(), AutoCloseable {
-    private val scope = CoroutineScope(CoroutineName("ZephyrService") + SupervisorJob())
+    constructor(
+        configuration: DataServiceCfg,
+        processor: ZephyrEventProcessor,
+        onInfo: (Event) -> Unit,
+        onError: (EventData?, Throwable) -> Unit,
+    ) : this(configuration, processor, onInfo, onError,  CoroutineScope(CoroutineName("ZephyrService") + SupervisorJob()))
     private val knownCrawlers: MutableSet<CrawlerId> = ConcurrentHashMap.newKeySet()
     private val lastEvent: MutableMap<CrawlerId, EventID> = ConcurrentHashMap()
 
-    override fun crawlerConnect(request: CrawlerInfo, responseObserver: StreamObserver<Check2Info>) {
-        LOGGER.info { "Received handshake from crawler ${request.id}" }
+    override fun crawlerConnect(request: CrawlerInfo, responseObserver: StreamObserver<DataServiceInfo>) {
+        LOGGER.info { "Received handshake from crawler ${request.id.toJson()}" }
         knownCrawlers += request.id
-        responseObserver.onNext(Check2Info.newBuilder()
+        responseObserver.onNext(DataServiceInfo.newBuilder()
             .setName(configuration.name)
             .setVersion(configuration.versionMarker)
             .apply {
@@ -67,11 +74,17 @@ class ZephyrServiceImpl(
                 }
             }
             .build())
+        responseObserver.onCompleted()
     }
 
     override fun sendEvent(request: EventDataRequest, responseObserver: StreamObserver<EventResponse>) {
+        LOGGER.trace { "Received request: ${request.toJson()}" }
         if (!knownCrawlers.contains(request.id)) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Unknown crawler ID ${request.id.toJson()}").asException())
+            LOGGER.warn { "Received request from unknown crawler with id ${request.id.toJson()}. Sending response with HandshakeRequired = true" }
+            responseObserver.onNext(EventResponse.newBuilder()
+                .setStatus(DataServiceResponseStatus.newBuilder().setHandshakeRequired(true))
+                .build())
+            responseObserver.onCompleted()
             return
         }
         val context = Context.current()

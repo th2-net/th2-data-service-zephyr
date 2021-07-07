@@ -34,17 +34,21 @@ dependencies {
 
     // the library for interaction with infra API
     implementation 'com.exactpro.th2:common:3.16.3'
-    implementation 'com.exactpro.th2:grpc-crawler-data-service:0.0.1-check2_template-949858928-SNAPSHOT'
+    implementation 'com.exactpro.th2:grpc-crawler-data-service:0.0.1'
 
     // JIRA
     implementation group: 'com.atlassian.jira', name: 'jira-rest-java-client-core', version: '5.2.2'
-    implementation group: 'io.atlassian.fugue', name: 'fugue', version: '4.7.2'
+    implementation(group: 'io.atlassian.fugue', name: 'fugue', version: '4.7.2') {
+        because("It is required by JIRA rest client but for some reasons it is not in dependencies for it")
+    }
     implementation('com.atlassian.jwt:jwt-core:3.2.0')
     implementation('com.atlassian.jwt:jwt-api:3.1.0')
 
     // Ktor
     implementation("io.ktor:ktor-client:$ktorVersion")
-    implementation("io.ktor:ktor-client-java:$ktorVersion")
+    implementation("io.ktor:ktor-client-java:$ktorVersion") {
+        because("the CIO (coroutine base engine) has some issues with SSL")
+    }
     implementation("io.ktor:ktor-client-auth:$ktorVersion")
     implementation("io.ktor:ktor-client-logging:$ktorVersion")
     implementation("io.ktor:ktor-client-jackson:$ktorVersion")

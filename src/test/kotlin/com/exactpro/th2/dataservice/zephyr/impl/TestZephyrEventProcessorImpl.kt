@@ -35,7 +35,9 @@ import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.eq
 import com.nhaarman.mockitokotlin2.inOrder
+import com.nhaarman.mockitokotlin2.isNull
 import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.never
 import com.nhaarman.mockitokotlin2.same
 import com.nhaarman.mockitokotlin2.whenever
 import io.grpc.stub.StreamObserver
@@ -200,6 +202,55 @@ class TestZephyrEventProcessorImpl {
                 verify(zephyr).findExecution(any(), any(), any(), any(), any())
                 verify(zephyr).updateExecution(argThat {
                     status?.id == 1.toLong()
+                })
+                verifyNoMoreInteractions()
+            }
+        }
+    }
+
+    @Test
+    fun `adds test to cycle if not folder found`() {
+        TestCoroutineScope().runBlockingTest {
+            val root = EventData.newBuilder()
+                .setEventId(toEventID("1"))
+                .setEventName("1.0.0|TestCycle|${Instant.now()}")
+                .build()
+            val issue = EventData.newBuilder()
+                .setEventId(toEventID("3"))
+                .setParentEventId(root.eventId)
+                .setEventName("TEST_1234")
+                .build()
+            val eventsById = arrayOf(root, issue).associateBy { it.eventId }
+            whenever(dataProvider.getEvent(any(), any())).then {
+                val id = it.arguments[0] as EventID
+                val observer = it.arguments[1] as StreamObserver<EventData>
+                eventsById[id]?.let {
+                    observer.onNext(it)
+                    observer.onCompleted()
+                } ?: run { observer.onError(RuntimeException("Unknown id $id")) }
+            }
+            val cycle = Cycle("1", "TestCycle", 1, 1)
+            whenever(zephyr.getCycle(eq("TestCycle"), same(project), same(version)))
+                .thenReturn(cycle)
+            val execution = Execution("1", 1, 1, "1", 1, ExecutionStatus(-1, "NotTested", 1))
+            whenever(zephyr.findExecution(same(project), same(version), same(cycle), isNull(), argThat { key == "TEST-1234" }))
+                .thenReturn(null, execution)
+
+            val processed = processor.onEvent(issue)
+            Assertions.assertTrue(processed) { "The event for issue was not processed" }
+
+            inOrder(jira, zephyr) {
+                verify(zephyr).getExecutionStatuses()
+
+                verify(jira).issueByKey("TEST-1234")
+                verify(jira).projectByKey("TEST")
+                verify(zephyr).getCycle(eq("TestCycle"), any(), any())
+                verify(zephyr, never()).getFolder(same(cycle), any())
+                verify(zephyr).findExecution(any(), any(), any(), isNull(), any())
+                verify(zephyr).addTestToCycle(same(cycle), any())
+                verify(zephyr).findExecution(any(), any(), any(), isNull(), any())
+                verify(zephyr).updateExecution(argThat {
+                    status?.id == (EventStatus.SUCCESS.number + 1).toLong()
                 })
                 verifyNoMoreInteractions()
             }
