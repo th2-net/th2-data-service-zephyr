@@ -31,7 +31,7 @@ spec:
   pins:
     - name: server
       connection-type: grpc
-    - name: data-provider
+    - name: to_data_provider
       connection-type: grpc
   custom-config:
     connection:
@@ -102,6 +102,30 @@ Contains parameters for synchronization with Zephyr
 Contains parameters to set up the Logging for inner HTTP clients that are used to connect to the Jira and Zephyr
 
 + level - level logging for HTTP client. Available levels: **ALL**, **HEADERS**, **BODY**, **INFO**, **NONE**
+
+## Links example
+
+The **data service zephyr** requires the link to the **data provider** working in gRPC mode. Link example:
+
+```yaml
+apiVersion: th2.exactpro.com/v1
+kind: Th2Link
+metadata:
+  name: zephyr-service-links
+spec:
+  boxes-relation:
+    router-grpc:
+    - name: data-service-zephyr-to-data-provider
+      from:
+        strategy: filter
+        box: zephyr-service
+        pin: to_data_provider
+      to:
+        service-class: com.exactpro.th2.dataprovider.grpc.DataProviderService
+        strategy: robin
+        box: data-provider
+        pin: server
+```
 
 # Useful links
 
