@@ -17,14 +17,12 @@
 package com.exactpro.th2.dataservice.zephyr.cfg
 
 import com.exactpro.th2.common.grpc.EventStatus
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.features.logging.LogLevel
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class TestZephyrSynchronizationCfg {
-    val mapper = jacksonObjectMapper()
 
     @Test
     fun deserialization() {
@@ -56,8 +54,10 @@ class TestZephyrSynchronizationCfg {
         }
         """.trimIndent()
 
-        val cfg = mapper.readValue<ZephyrSynchronizationCfg>(data)
-        with(cfg.connection) {
+        val cfg = ZephyrSynchronizationCfg.MAPPER.readValue<ZephyrSynchronizationCfg>(data)
+        assertEquals(1, cfg.connections.size) { "Deserialized connections: ${cfg.connections}" }
+        with(cfg.connections.first()) {
+            assertEquals(ConnectionCfg.DEFAULT_NAME, name)
             assertEquals("https://your.jira.address.com", baseUrl)
             assertEquals("jira-user", jira.username)
             assertEquals("your password", jira.key)
@@ -66,8 +66,9 @@ class TestZephyrSynchronizationCfg {
             assertEquals("ZephyrService", name)
             assertEquals("0.0.1", versionMarker)
         }
-        with(cfg.syncParameters) {
-            assertEquals("QAP_\\d+", issueRegexp.pattern())
+        assertEquals(1, cfg.syncParameters.size)
+        with(cfg.syncParameters.first()) {
+            assertEquals("QAP_\\d+", issueRegexp.pattern)
             assertEquals('|', delimiter)
             assertEquals("PASS", statusMapping[EventStatus.SUCCESS])
             assertEquals("WIP", statusMapping[EventStatus.FAILED])

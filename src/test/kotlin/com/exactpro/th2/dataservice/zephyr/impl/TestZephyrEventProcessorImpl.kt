@@ -23,6 +23,7 @@ import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataservice.zephyr.JiraApiService
 import com.exactpro.th2.dataservice.zephyr.ZephyrApiService
+import com.exactpro.th2.dataservice.zephyr.cfg.ConnectionCfg
 import com.exactpro.th2.dataservice.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataservice.zephyr.model.Cycle
 import com.exactpro.th2.dataservice.zephyr.model.Execution
@@ -78,9 +79,8 @@ class TestZephyrEventProcessorImpl {
             statusMapping = mapOf(
                 EventStatus.FAILED to "WIP",
                 EventStatus.SUCCESS to "PASS",
-            )
-        ),
-        jira, zephyr, dataProvider
+            )),
+        mapOf(ConnectionCfg.DEFAULT_NAME to ServiceHolder(jira, zephyr)), dataProvider
     )
 
     @ParameterizedTest

@@ -42,37 +42,59 @@ import mu.KotlinLogging
 import java.util.EnumMap
 
 class ZephyrEventProcessorImpl(
-    private val configuration: EventProcessorCfg,
-    private val jira: JiraApiService,
-    private val zephyr: ZephyrApiService,
+    private val configurations: List<EventProcessorCfg>,
+    private val connections: Map<String, ServiceHolder>,
     private val dataProvider: AsyncDataProviderService
 ) : ZephyrEventProcessor {
-    private val statusMapping: Map<EventStatus, BaseExecutionStatus>
-    init {
-        statusMapping = runBlocking {
-            val statuses = zephyr.getExecutionStatuses().associateBy { it.name }
-            EnumMap<EventStatus, BaseExecutionStatus>(EventStatus::class.java).apply {
-                configuration.statusMapping.forEach { (eventStatus, zephyrStatusName) ->
+    constructor(configuration: EventProcessorCfg, connections: Map<String, ServiceHolder>, dataProvider: AsyncDataProviderService)
+        : this(listOf(configuration), connections, dataProvider)
+
+    private val statusMapping: Map<String, Map<EventStatus, BaseExecutionStatus>> = runBlocking {
+        configurations.associate { cfg ->
+            val services: ServiceHolder = requireNotNull(connections[cfg.destination]) { "not connection with name ${cfg.destination}" }
+            LOGGER.info { "Requesting statuses for connection named ${cfg.destination}" }
+            val statuses = services.zephyr.getExecutionStatuses().associateBy { it.name }
+            val mapping = EnumMap<EventStatus, BaseExecutionStatus>(EventStatus::class.java).apply {
+                cfg.statusMapping.forEach { (eventStatus, zephyrStatusName) ->
                     put(eventStatus, requireNotNull(statuses[zephyrStatusName]) {
-                        "Cannot find status $zephyrStatusName in Zephyr. Known statuses: ${statuses.values}"
+                        "Cannot find status $zephyrStatusName in Zephyr from connection ${cfg.destination}. Known statuses: ${statuses.values}"
                     })
                 }
             }
+            cfg.destination to mapping
         }
     }
 
     override suspend fun onEvent(event: EventData): Boolean {
         val eventName = event.eventName
-        LOGGER.trace { "Processing event ${event.shortString}" }
-        if (!isIssue(eventName)) {
+        LOGGER.trace { "Processing event ${event.toJson()}" }
+        val matchesIssue: List<EventProcessorCfg> = matchesIssue(eventName)
+        if (matchesIssue.isEmpty()) {
             return false
         }
-        LOGGER.trace { "Gathering status for run based on event ${event.shortString}" }
-        val runStatus: EventStatus = gatherExecutionStatus(event)
-        val executionStatus = checkNotNull(statusMapping[runStatus]) {
-            "Cannot find the status mapping for $runStatus"
-        }
 
+        LOGGER.trace { "Found ${matchesIssue.size} match(es) to process event ${event.shortString}" }
+        for (processorCfg in matchesIssue) {
+            val connectionName = processorCfg.destination
+            LOGGER.trace { "Gathering status for run based on event ${event.shortString}" }
+            val eventStatus: EventStatus = gatherExecutionStatus(event)
+            val services: ServiceHolder = checkNotNull(connections[connectionName]) { "Cannot find the connected services for name $connectionName" }
+            val executionStatus: BaseExecutionStatus = getExecutionStatusForEvent(connectionName, eventStatus)
+            EventProcessorContext(services, processorCfg).processEvent(eventName, event, executionStatus)
+        }
+        return true
+    }
+
+    private fun getExecutionStatusForEvent(
+        connectionName: String,
+        eventStatus: EventStatus
+    ): BaseExecutionStatus {
+        return checkNotNull(statusMapping[connectionName]?.get(eventStatus)) {
+            "Cannot find the status mapping for $eventStatus"
+        }
+    }
+
+    private suspend fun EventProcessorContext.processEvent(eventName: String, event: EventData, executionStatus: BaseExecutionStatus) {
         LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
         val issue: Issue = getIssue(eventName)
         val rootEvent: EventData? = findRootEvent(event)
@@ -82,13 +104,36 @@ class ZephyrEventProcessorImpl(
         } else {
             null
         }
-        val (cycleName: String, version: Version) = getCycleNameAndVersion(rootEvent, project, issue)
+        val folderName: String? = folderEvent?.eventName ?: configuration.folders.asSequence()
+            .filter { it.value.contains(issue.key) }
+            .map { it.key }
+            .firstOrNull()
+        val versionCycleKey: VersionCycleKey = extractVersionCycleKey(rootEvent, issue)
 
-        LOGGER.trace { "Getting cycle for event ${event.shortString}" }
+        updateOrCreateExecution(event, project, issue, versionCycleKey, folderName, executionStatus)
+    }
+
+    private suspend fun EventProcessorContext.updateOrCreateExecution(
+        event: EventData,
+        project: Project,
+        issue: Issue,
+        versionCycleKey: VersionCycleKey,
+        folderName: String?,
+        executionStatus: BaseExecutionStatus
+    ) {
+        val (cycleName: String, version: Version) = with(versionCycleKey) {
+            cycle to checkNotNull(project.findVersion(version)) {
+                "Cannot find version $version for project ${project.name}"
+            }
+        }
+
+        LOGGER.trace { "Getting cycle $cycleName for event ${event.shortString}" }
         val cycle: Cycle = getOrCreateCycle(cycleName, project, version)
 
-        LOGGER.trace { "Getting folder for event ${event.shortString}" }
-        val folder: Folder? = getOrCreateFolderIfNeeded(cycle, folderEvent?.eventName, issue)
+        val folder: Folder? = folderName?.let {
+            LOGGER.trace { "Getting folder $it for event ${event.shortString}" }
+            getOrCreateFolderIfNeeded(cycle, it)
+        }
 
         LOGGER.trace { "Getting execution for event ${event.shortString}" }
         val execution = getOrCreateExecution(project, version, cycle, folder, issue)
@@ -102,7 +147,6 @@ class ZephyrEventProcessorImpl(
                 comment = "Updated by th2 because of event with id: ${event.eventId.id}"
             )
         )
-        return true
     }
 
     private suspend fun findRootEvent(event: EventData): EventData? {
@@ -116,7 +160,7 @@ class ZephyrEventProcessorImpl(
         return curEvent
     }
 
-    private suspend fun getOrCreateExecution(
+    private suspend fun EventProcessorContext.getOrCreateExecution(
         project: Project,
         version: Version,
         cycle: Cycle,
@@ -136,38 +180,42 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private suspend fun addTestToFolder(issue: Issue, folder: Folder): ZephyrJob {
+    private suspend fun EventProcessorContext.addTestToFolder(issue: Issue, folder: Folder): ZephyrJob {
         LOGGER.debug { "Adding the test ${issue.key} to folder ${folder.name}" }
         return zephyr.addTestToFolder(folder, issue)
     }
 
-    private suspend fun addTestToCycle(issue: Issue, cycle: Cycle): ZephyrJob {
+    private suspend fun EventProcessorContext.addTestToCycle(issue: Issue, cycle: Cycle): ZephyrJob {
         LOGGER.debug { "Adding the test ${issue.key} to cycle ${cycle.name}" }
         return zephyr.addTestToCycle(cycle, issue)
     }
 
-    private suspend fun getProject(issue: Issue): Project {
+    private suspend fun EventProcessorContext.getProject(issue: Issue): Project {
         return jira.projectByKey(issue.projectKey)
     }
 
-    private suspend fun getOrCreateCycle(cycleName: String, project: Project, version: Version): Cycle {
+    private suspend fun EventProcessorContext.getOrCreateCycle(cycleName: String, project: Project, version: Version): Cycle {
         return zephyr.getCycle(cycleName, project, version) ?: run {
             LOGGER.debug { "Crating cycle $cycleName for project ${project.name} version ${version.name}" }
             zephyr.createCycle(cycleName, project, version)
         }
     }
 
-    private suspend fun getIssue(eventName: String): Issue {
+    private suspend fun EventProcessorContext.getIssue(eventName: String): Issue {
         return jira.issueByKey(eventName.toIssueKey())
     }
 
-    private fun gatherExecutionStatus(event: EventData): EventStatus {
+    @Suppress("RedundantSuspendModifier") // TODO: probably we will need to call the data provider in future
+    private suspend fun gatherExecutionStatus(event: EventData): EventStatus {
         // TODO: check relations by messages
         return event.successful
     }
 
-    private fun getCycleNameAndVersion(parent: EventData?, project: Project, issue: Issue): Pair<String, Version> {
-        val key = if (parent == null) {
+    private fun EventProcessorContext.extractVersionCycleKey(
+        parent: EventData?,
+        issue: Issue,
+    ): VersionCycleKey {
+        return if (parent == null) {
             getCycleNameAndVersionFromCfg(issue)
         } else {
             val split = parent.eventName.split(configuration.delimiter)
@@ -175,14 +223,9 @@ class ZephyrEventProcessorImpl(
             val (version: String, cycleName: String) = split
             VersionCycleKey(version, cycleName)
         }
-        return with(key) {
-            cycle to checkNotNull(project.findVersion(version)) {
-                "Cannot find version $version for project ${project.name}"
-            }
-        }
     }
 
-    private fun getCycleNameAndVersionFromCfg(issue: Issue): VersionCycleKey {
+    private fun EventProcessorContext.getCycleNameAndVersionFromCfg(issue: Issue): VersionCycleKey {
         val key = configuration.defaultCycleAndVersions.asSequence()
             .find { it.value.contains(issue.key) }
             ?.key
@@ -190,22 +233,28 @@ class ZephyrEventProcessorImpl(
         return key
     }
 
-    private suspend fun getOrCreateFolderIfNeeded(cycle: Cycle, name: String?, issue: Issue): Folder? {
-        val folderName = name ?: configuration.folders.asSequence()
-            .filter { it.value.contains(issue.key) }
-            .map { it.key }
-            .firstOrNull() ?: return null
+    private suspend fun EventProcessorContext.getOrCreateFolderIfNeeded(cycle: Cycle, folderName: String): Folder {
         return zephyr.getFolder(cycle, folderName) ?: run {
             LOGGER.debug { "Creating folder $folderName for cycle ${cycle.name}" }
             zephyr.createFolder(cycle, folderName)
         }
     }
 
-    private fun isIssue(eventName: String): Boolean {
-        return configuration.issueRegexp.matcher(eventName).matches()
+    private fun matchesIssue(eventName: String): List<EventProcessorCfg> {
+        return configurations.filter { it.issueRegexp.matches(eventName) }
     }
 
     private fun String.toIssueKey(): String = replace('_', '-')
+
+    private class EventProcessorContext(
+        val services: ServiceHolder,
+        val configuration: EventProcessorCfg
+    ) {
+        val jira: JiraApiService
+            get() = services.jira
+        val zephyr: ZephyrApiService
+            get() = services.zephyr
+    }
 
     companion object {
         private val LOGGER = KotlinLogging.logger { }

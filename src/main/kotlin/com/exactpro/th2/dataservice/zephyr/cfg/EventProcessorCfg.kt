@@ -29,20 +29,25 @@ class EventProcessorCfg(
      * the issue key will be extracted according to that format.
      */
     issueFormat: String,
+
+    /**
+     * The name of the JIRA connection that should be used to synchronize the test events
+     */
+    val destination: String = ConnectionCfg.DEFAULT_NAME,
+
     /**
      * Delimiter for version and cycle name in the root event
      */
     val delimiter: Char = '|',
-
     /**
      * Mapping between event status and the status in Jira by its name
      */
     val statusMapping: Map<EventStatus, String>,
+
     /**
      * Contains mapping between folder and issues' keys that correspond to that folder
      */
     val folders: Map<String, Set<String>> = emptyMap(),
-
     /**
      * Mapping between version and cycle, and issues that correspond to those values
      */
@@ -53,7 +58,7 @@ class EventProcessorCfg(
      */
     val jobAwaitTimeout: Long = TimeUnit.SECONDS.toMillis(1)
 ) {
-    val issueRegexp: Pattern = issueFormat.toPattern()
+    val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {
         require(jobAwaitTimeout > 0) { "jobAwaitTimeout must be grater than 0" }
         require(statusMapping.containsKey(FAILED)) { "mapping for $FAILED status must be set" }

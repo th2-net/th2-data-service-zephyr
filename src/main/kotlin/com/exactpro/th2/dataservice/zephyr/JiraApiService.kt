@@ -25,4 +25,17 @@ interface JiraApiService : AutoCloseable {
     suspend fun accountInfo(): AccountInfo
     suspend fun projectByKey(projectKey: String): Project
     suspend fun issueByKey(issueKey: String): Issue
+    suspend fun search(jql: Jql, searchParameters: SearchParameters? = null): List<Issue>
 }
+
+data class SearchParameters(
+    val limit: Int,
+    val startAt: Int
+) {
+    init {
+        require(limit > 0) { "'limit' must be a positive integer" }
+        require(startAt >= 0) { "'startAt' must be a positive integer or zero" }
+    }
+}
+
+typealias Jql = String

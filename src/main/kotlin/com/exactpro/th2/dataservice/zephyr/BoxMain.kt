@@ -18,10 +18,8 @@
 package com.exactpro.th2.dataservice.zephyr
 
 import com.exactpro.th2.common.event.Event
-import com.exactpro.th2.common.event.EventUtils
 import com.exactpro.th2.common.event.EventUtils.createMessageBean
 import com.exactpro.th2.common.grpc.EventBatch
-import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.common.metrics.liveness
 import com.exactpro.th2.common.metrics.readiness
 import com.exactpro.th2.common.schema.factory.CommonFactory
@@ -29,8 +27,10 @@ import com.exactpro.th2.common.schema.factory.extensions.getCustomConfiguration
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataservice.zephyr.cfg.ZephyrSynchronizationCfg
+import com.exactpro.th2.dataservice.zephyr.cfg.util.validate
 import com.exactpro.th2.dataservice.zephyr.grpc.impl.ZephyrServiceImpl
 import com.exactpro.th2.dataservice.zephyr.impl.JiraApiServiceImpl
+import com.exactpro.th2.dataservice.zephyr.impl.ServiceHolder
 import com.exactpro.th2.dataservice.zephyr.impl.ZephyrApiServiceImpl
 import com.exactpro.th2.dataservice.zephyr.impl.ZephyrEventProcessorImpl
 import mu.KotlinLogging
@@ -69,6 +69,12 @@ fun main(args: Array<String>) {
         resources += factory
 
         val cfg = factory.getCustomConfiguration<ZephyrSynchronizationCfg>()
+        val errors: List<String> = cfg.validate()
+        if (errors.isNotEmpty()) {
+            LOGGER.error { "Configuration errors found:" }
+            errors.forEach { LOGGER.error(it) }
+            exitProcess(2)
+        }
 
         // The BOX is alive
         liveness = true
@@ -87,22 +93,31 @@ fun main(args: Array<String>) {
 
         val dataProvider = factory.grpcRouter.getService(AsyncDataProviderService::class.java)
 
-        val connection = cfg.connection
-        val jiraApi = JiraApiServiceImpl(
-            connection.baseUrl,
-            connection.jira,
-            cfg.httpLogging
-        )
-        resources += jiraApi
+        val connections: Map<String, ServiceHolder> = cfg.connections.associate { connection ->
+            val jiraApi = JiraApiServiceImpl(
+                connection.baseUrl,
+                connection.jira,
+                cfg.httpLogging
+            )
 
-        val zephyrApi = ZephyrApiServiceImpl(
-            connection.baseUrl,
-            connection.zephyr,
-            cfg.httpLogging
-        )
-        resources += zephyrApi
+            val zephyrApi = ZephyrApiServiceImpl(
+                connection.baseUrl,
+                connection.zephyr,
+                cfg.httpLogging
+            )
 
-        val processor = ZephyrEventProcessorImpl(cfg.syncParameters, jiraApi, zephyrApi, dataProvider)
+            connection.name to ServiceHolder(jiraApi, zephyrApi)
+        }
+
+        resources += AutoCloseable {
+            connections.forEach { (name, services) ->
+                LOGGER.info { "Closing $name connection" }
+                runCatching { services.jira.close() }.onFailure { LOGGER.error(it) { "Cannot close the JIRA service for connection named $name" } }
+                runCatching { services.zephyr.close() }.onFailure { LOGGER.error(it) { "Cannot close the Zephyr service for connection named $name" } }
+            }
+        }
+
+        val processor = ZephyrEventProcessorImpl(cfg.syncParameters, connections, dataProvider)
         val onInfo: (Event) -> Unit = { event ->
             runCatching {
                 eventRouter.send(

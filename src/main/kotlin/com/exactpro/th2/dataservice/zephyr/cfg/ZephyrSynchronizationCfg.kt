@@ -16,16 +16,28 @@
 
 package com.exactpro.th2.dataservice.zephyr.cfg
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.client.features.logging.LogLevel
 
 class ZephyrSynchronizationCfg(
     val dataService: DataServiceCfg,
-    val connection: ConnectionCfg,
-    val syncParameters: EventProcessorCfg,
+    @JsonAlias("connection") val connections: List<ConnectionCfg>,
+    val syncParameters: List<EventProcessorCfg>,
     val httpLogging: HttpLoggingConfiguration = HttpLoggingConfiguration()
-)
+) {
+    init {
+        require(connections.isNotEmpty()) { "at least one connection must be specified" }
+    }
+    companion object {
+        val MAPPER: ObjectMapper = jacksonObjectMapper()
+            .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+    }
+}
 
 class DataServiceCfg(
     val name: String = "Zephyr",
@@ -42,10 +54,15 @@ class HttpLoggingConfiguration(
 )
 
 class ConnectionCfg(
+    val name: String = DEFAULT_NAME,
     val baseUrl: String,
     val jira: BaseAuth,
     val zephyr: Credentials = jira
-)
+) {
+    companion object {
+        const val DEFAULT_NAME = "DefaultConnection"
+    }
+}
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,

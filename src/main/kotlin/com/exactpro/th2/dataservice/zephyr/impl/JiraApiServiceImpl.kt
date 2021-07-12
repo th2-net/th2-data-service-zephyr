@@ -18,6 +18,8 @@ package com.exactpro.th2.dataservice.zephyr.impl
 
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
 import com.exactpro.th2.dataservice.zephyr.JiraApiService
+import com.exactpro.th2.dataservice.zephyr.Jql
+import com.exactpro.th2.dataservice.zephyr.SearchParameters
 import com.exactpro.th2.dataservice.zephyr.cfg.BaseAuth
 import com.exactpro.th2.dataservice.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataservice.zephyr.model.AccountInfo
@@ -37,6 +39,7 @@ import io.ktor.client.request.get
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.takeFrom
+import kotlinx.coroutines.suspendCancellableCoroutine
 import mu.KotlinLogging
 import java.net.URI
 import java.time.Duration
@@ -88,7 +91,22 @@ class JiraApiServiceImpl(
         check(issueKey.isNotBlank()) { "issue key cannot be blank" }
         LOGGER.trace { "Finding issue with key '$issueKey'" }
         return api.issueClient.getIssue(issueKey).await()
-            .run { Issue(id, key, project.key) }
+            .run { toIssueModel() }
+    }
+
+    override suspend fun search(jql: Jql, searchParameters: SearchParameters?): List<Issue> {
+        require(jql.isNotBlank()) { "'jql' cannot be blank" }
+        LOGGER.trace { "Executing query $jql" + (searchParameters?.let { "; parameters $it" } ?: "") }
+        return api.searchClient.run {
+            if (searchParameters == null) {
+                searchJql(jql)
+            } else {
+                with(searchParameters) {
+                    searchJql(jql, limit, startAt, null)
+                }
+            }
+        }.await()
+            .run { issues.map { it.toIssueModel() } }
     }
 
     override fun close() {
@@ -99,13 +117,17 @@ class JiraApiServiceImpl(
             .onFailure { LOGGER.error(it) { "Cannot close HTTP client" } }
     }
 
-    private suspend fun <T> Promise<T>.await(): T = suspendCoroutine { cont ->
-        done { cont.resume(it) }
-            .fail { cont.resumeWithException(it) }
-    }
 
     companion object {
         private const val REST_API_PREFIX = "rest/api/latest"
         private val LOGGER = KotlinLogging.logger { }
+
+        private fun com.atlassian.jira.rest.client.api.domain.Issue.toIssueModel() = Issue(id, key, project.key)
+
+        private suspend fun <T> Promise<T>.await(): T = suspendCancellableCoroutine { cont ->
+            cont.invokeOnCancellation { this.cancel(true) }
+            done { cont.resume(it) }
+                .fail { cont.resumeWithException(it) }
+        }
     }
 }
