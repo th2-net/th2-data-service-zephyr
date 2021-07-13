@@ -14,28 +14,22 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataservice.zephyr.model
+package com.exactpro.th2.dataservice.zephyr.strategies.linked
 
-data class Issue(
-    val id: Long,
-    val key: String,
-    val projectKey: String,
-    val links: List<IssueLink> = emptyList()
-)
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
-data class IssueLink(
-    val key: String,
-    val type: LinkType
-)
+class TestTrackingWhiteList {
+    @Test
+    fun `does not allow to create with projectKey and projectName`() {
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            TrackingWhiteList(
+                projectName = "name",
+                projectKey = "key",
+                issues = setOf()
+            )
+        }
 
-data class LinkType(
-    val name: String,
-    val description: String,
-    val direction: LinkDirection
-) {
-    init {
-        require(name.isNotBlank()) { "name cannot be blank" }
-        require(description.isNotBlank()) { "description cannot be blank" }
+        assertEquals("only one of the parameters must be set ('projectKey' or 'projectName')", exception.message)
     }
-    enum class LinkDirection { OUTWARD, INWARD }
 }

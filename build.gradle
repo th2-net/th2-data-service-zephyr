@@ -1,6 +1,7 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.kotlin.jvm' version '1.4.32'
+    id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
+    id "org.jetbrains.kotlin.kapt" version "$kotlin_version"
     id 'com.palantir.docker' version '0.25.0'
     id 'application'
 }
@@ -35,6 +36,10 @@ dependencies {
     // the library for interaction with infra API
     implementation 'com.exactpro.th2:common:3.16.3'
     implementation 'com.exactpro.th2:grpc-crawler-data-service:0.0.1'
+
+    // Auto service
+    compileOnly 'com.google.auto.service:auto-service-annotations:1.0'
+    kapt 'com.google.auto.service:auto-service:1.0'
 
     // JIRA
     implementation group: 'com.atlassian.jira', name: 'jira-rest-java-client-core', version: '5.2.2'

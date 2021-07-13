@@ -19,6 +19,7 @@ package com.exactpro.th2.dataservice.zephyr.cfg
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.grpc.EventStatus.FAILED
 import com.exactpro.th2.common.grpc.EventStatus.SUCCESS
+import com.exactpro.th2.dataservice.zephyr.strategies.RelatedIssuesStrategyConfiguration
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
@@ -56,7 +57,12 @@ class EventProcessorCfg(
     /**
      * Time in milliseconds to await until zephyr job is done.
      */
-    val jobAwaitTimeout: Long = TimeUnit.SECONDS.toMillis(1)
+    val jobAwaitTimeout: Long = TimeUnit.SECONDS.toMillis(1),
+
+    /**
+     * The list of strategies to find the related issues
+     */
+    val relatedIssuesStrategies: List<RelatedIssuesStrategyConfiguration> = emptyList(),
 ) {
     val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {

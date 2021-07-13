@@ -14,28 +14,11 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataservice.zephyr.model
+package com.exactpro.th2.dataservice.zephyr
 
-data class Issue(
-    val id: Long,
-    val key: String,
-    val projectKey: String,
-    val links: List<IssueLink> = emptyList()
-)
+import com.exactpro.th2.dataservice.zephyr.strategies.RelatedIssuesStrategy
+import com.exactpro.th2.dataservice.zephyr.strategies.RelatedIssuesStrategyConfiguration
 
-data class IssueLink(
-    val key: String,
-    val type: LinkType
-)
-
-data class LinkType(
-    val name: String,
-    val description: String,
-    val direction: LinkDirection
-) {
-    init {
-        require(name.isNotBlank()) { "name cannot be blank" }
-        require(description.isNotBlank()) { "description cannot be blank" }
-    }
-    enum class LinkDirection { OUTWARD, INWARD }
+interface RelatedIssuesStrategiesStorage {
+    operator fun get(cfg: RelatedIssuesStrategyConfiguration): RelatedIssuesStrategy
 }

@@ -27,9 +27,11 @@ import com.exactpro.th2.common.schema.factory.extensions.getCustomConfiguration
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataservice.zephyr.cfg.ZephyrSynchronizationCfg
+import com.exactpro.th2.dataservice.zephyr.cfg.ZephyrSynchronizationCfg.Companion.MAPPER
 import com.exactpro.th2.dataservice.zephyr.cfg.util.validate
 import com.exactpro.th2.dataservice.zephyr.grpc.impl.ZephyrServiceImpl
 import com.exactpro.th2.dataservice.zephyr.impl.JiraApiServiceImpl
+import com.exactpro.th2.dataservice.zephyr.impl.RelatedIssuesStrategiesStorageImpl
 import com.exactpro.th2.dataservice.zephyr.impl.ServiceHolder
 import com.exactpro.th2.dataservice.zephyr.impl.ZephyrApiServiceImpl
 import com.exactpro.th2.dataservice.zephyr.impl.ZephyrEventProcessorImpl
@@ -68,7 +70,10 @@ fun main(args: Array<String>) {
         // do not forget to add resource to the resources queue
         resources += factory
 
-        val cfg = factory.getCustomConfiguration<ZephyrSynchronizationCfg>()
+        val customMapper = MAPPER
+        val strategiesStorageImpl = RelatedIssuesStrategiesStorageImpl()
+        strategiesStorageImpl.registerTypes(customMapper)
+        val cfg = factory.getCustomConfiguration<ZephyrSynchronizationCfg>(customMapper)
         val errors: List<String> = cfg.validate()
         if (errors.isNotEmpty()) {
             LOGGER.error { "Configuration errors found:" }
@@ -117,7 +122,7 @@ fun main(args: Array<String>) {
             }
         }
 
-        val processor = ZephyrEventProcessorImpl(cfg.syncParameters, connections, dataProvider)
+        val processor = ZephyrEventProcessorImpl(cfg.syncParameters, connections, dataProvider, strategiesStorageImpl)
         val onInfo: (Event) -> Unit = { event ->
             runCatching {
                 eventRouter.send(

@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.dataservice.zephyr.impl
 
+import com.atlassian.jira.rest.client.api.domain.IssueLinkType
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
 import com.exactpro.th2.dataservice.zephyr.JiraApiService
 import com.exactpro.th2.dataservice.zephyr.Jql
@@ -24,6 +25,8 @@ import com.exactpro.th2.dataservice.zephyr.cfg.BaseAuth
 import com.exactpro.th2.dataservice.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataservice.zephyr.model.AccountInfo
 import com.exactpro.th2.dataservice.zephyr.model.Issue
+import com.exactpro.th2.dataservice.zephyr.model.IssueLink
+import com.exactpro.th2.dataservice.zephyr.model.LinkType
 import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.Version
 import io.atlassian.util.concurrent.Promise
@@ -33,21 +36,17 @@ import io.ktor.client.features.auth.Auth
 import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
-import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.http.URLBuilder
-import io.ktor.http.Url
 import io.ktor.http.takeFrom
 import kotlinx.coroutines.suspendCancellableCoroutine
 import mu.KotlinLogging
 import java.net.URI
-import java.time.Duration
-import java.util.concurrent.TimeUnit
-import javax.ws.rs.core.UriBuilder
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import com.atlassian.jira.rest.client.api.domain.Issue as JiraIssue
+import com.atlassian.jira.rest.client.api.domain.IssueLink as JiraIssueLink
 
 class JiraApiServiceImpl(
     private val uri: String,
@@ -122,7 +121,22 @@ class JiraApiServiceImpl(
         private const val REST_API_PREFIX = "rest/api/latest"
         private val LOGGER = KotlinLogging.logger { }
 
-        private fun com.atlassian.jira.rest.client.api.domain.Issue.toIssueModel() = Issue(id, key, project.key)
+        private fun JiraIssue.toIssueModel() =
+            Issue(id, key, project.key, issueLinks?.map { it.toIssueLinkModel() } ?: emptyList())
+
+        private fun JiraIssueLink.toIssueLinkModel(): IssueLink {
+            return IssueLink(targetIssueKey, issueLinkType.toLinkTypeModel(targetIssueUri))
+        }
+
+        private fun IssueLinkType.toLinkTypeModel(targetIssueUri: URI): LinkType {
+            val direction = when (checkNotNull(direction) {
+                "direction for link to issue $targetIssueUri is null"
+            }) {
+                IssueLinkType.Direction.OUTBOUND -> LinkType.LinkDirection.OUTWARD
+                IssueLinkType.Direction.INBOUND -> LinkType.LinkDirection.INWARD
+            }
+            return LinkType(name, description, direction)
+        }
 
         private suspend fun <T> Promise<T>.await(): T = suspendCancellableCoroutine { cont ->
             cont.invokeOnCancellation { this.cancel(true) }

@@ -21,6 +21,7 @@ import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataservice.zephyr.JiraApiService
+import com.exactpro.th2.dataservice.zephyr.RelatedIssuesStrategiesStorage
 import com.exactpro.th2.dataservice.zephyr.ZephyrApiService
 import com.exactpro.th2.dataservice.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataservice.zephyr.cfg.EventProcessorCfg
@@ -44,10 +45,15 @@ import java.util.EnumMap
 class ZephyrEventProcessorImpl(
     private val configurations: List<EventProcessorCfg>,
     private val connections: Map<String, ServiceHolder>,
-    private val dataProvider: AsyncDataProviderService
+    private val dataProvider: AsyncDataProviderService,
+    private val strategies: RelatedIssuesStrategiesStorage
 ) : ZephyrEventProcessor {
-    constructor(configuration: EventProcessorCfg, connections: Map<String, ServiceHolder>, dataProvider: AsyncDataProviderService)
-        : this(listOf(configuration), connections, dataProvider)
+    constructor(
+        configuration: EventProcessorCfg,
+        connections: Map<String, ServiceHolder>,
+        dataProvider: AsyncDataProviderService,
+        knownStrategies: RelatedIssuesStrategiesStorage,
+    ) : this(listOf(configuration), connections, dataProvider, knownStrategies)
 
     private val statusMapping: Map<String, Map<EventStatus, BaseExecutionStatus>> = runBlocking {
         configurations.associate { cfg ->
@@ -98,7 +104,6 @@ class ZephyrEventProcessorImpl(
         LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
         val issue: Issue = getIssue(eventName)
         val rootEvent: EventData? = findRootEvent(event)
-        val project: Project = getProject(issue)
         val folderEvent: EventData? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.eventId) {
             dataProvider.getEventSuspend(event.parentEventId)
         } else {
@@ -110,17 +115,25 @@ class ZephyrEventProcessorImpl(
             .firstOrNull()
         val versionCycleKey: VersionCycleKey = extractVersionCycleKey(rootEvent, issue)
 
-        updateOrCreateExecution(event, project, issue, versionCycleKey, folderName, executionStatus)
+        updateOrCreateExecution(event, issue, versionCycleKey, folderName, executionStatus)
+
+        configuration.relatedIssuesStrategies.forEach {
+            val strategy = strategies[it]
+            LOGGER.info { "Extracting related issues with strategy ${strategy::class.java.canonicalName}" }
+            strategy.findRelatedFor(services, issue).forEach { relatedIssue ->
+                updateOrCreateExecution(event, relatedIssue, versionCycleKey, folderName, executionStatus)
+            }
+        }
     }
 
     private suspend fun EventProcessorContext.updateOrCreateExecution(
         event: EventData,
-        project: Project,
         issue: Issue,
         versionCycleKey: VersionCycleKey,
         folderName: String?,
         executionStatus: BaseExecutionStatus
     ) {
+        val project: Project = getProject(issue)
         val (cycleName: String, version: Version) = with(versionCycleKey) {
             cycle to checkNotNull(project.findVersion(version)) {
                 "Cannot find version $version for project ${project.name}"

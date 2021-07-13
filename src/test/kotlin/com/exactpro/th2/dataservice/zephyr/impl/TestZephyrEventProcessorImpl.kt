@@ -80,7 +80,7 @@ class TestZephyrEventProcessorImpl {
                 EventStatus.FAILED to "WIP",
                 EventStatus.SUCCESS to "PASS",
             )),
-        mapOf(ConnectionCfg.DEFAULT_NAME to ServiceHolder(jira, zephyr)), dataProvider
+        mapOf(ConnectionCfg.DEFAULT_NAME to ServiceHolder(jira, zephyr)), dataProvider, mock { }
     )
 
     @ParameterizedTest

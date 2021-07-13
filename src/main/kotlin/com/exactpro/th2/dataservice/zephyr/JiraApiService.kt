@@ -29,8 +29,8 @@ interface JiraApiService : AutoCloseable {
 }
 
 data class SearchParameters(
-    val limit: Int,
-    val startAt: Int
+    val limit: Int = 50,
+    val startAt: Int = 0
 ) {
     init {
         require(limit > 0) { "'limit' must be a positive integer" }
