@@ -1,4 +1,4 @@
-# Zephyr data service (0.0.1)
+# Zephyr data service (0.1.0)
 
 Zephyr data service synchronizes the test in th2 with Zephyr test.
 It searches for events that match format in the configuration and updates (or create new) executions.
@@ -25,8 +25,8 @@ kind: Th2Box
 metadata:
   name: zephyr-service
 spec:
-  image-name: <image name>
-  image-version: <image version>
+  image-name: ghcr.io/th2-net/th2-data-service-zephyr
+  image-version: 0.1.0
   type: th2-act
   pins:
     - name: server
@@ -54,7 +54,7 @@ spec:
           trackLinkedIssues:
               - linkName: "is cloned by"
                 whitelist:
-                    - projectKey: P1
+                    - projectKey: "P1"
                       issues:
                           - TEST-1
                           - TEST-2
@@ -107,11 +107,11 @@ Contains information about name and version for current data service. It is used
 
 Contains parameters for synchronization with Zephyr
 
-+ issueFormat - the regular expression to match the event that corresponds to the issue
-+ delimiter - the delimiter to use to extract version and cycle from the root event
-+ statusMapping - mapping between event status and status in Zephyr. **NOTE: mapping for SUCCESS and FAILED event statuses is required**
-+ jobAwaitTimeout - the timeout to await the job for adding test to a cycle/folder
-+ relatedIssuesStrategies - configures the strategies to find the additional issues related to the currently processing one.
++ **issueFormat** - the regular expression to match the event that corresponds to the issue
++ **delimiter** - the delimiter to use to extract version and cycle from the root event
++ **statusMapping** - mapping between event status and status in Zephyr. **NOTE: mapping for SUCCESS and FAILED event statuses is required**
++ **jobAwaitTimeout** - the timeout to await the job for adding test to a cycle/folder
++ **relatedIssuesStrategies** - configures the strategies to find the additional issues related to the currently processing one.
   They will be updated using the version, cycle and folder for the current issue.
   
 ##### Strategies
@@ -204,6 +204,16 @@ spec:
         box: data-provider
         pin: server
 ```
+
+# Changes
+
+## v0.1.0
+
+### Added
+
++ Strategies for finding related issues
++ Create strategy for following issue links
+
 
 # Useful links
 
