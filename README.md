@@ -49,6 +49,21 @@ spec:
         SUCCESS: PASS
         FAILED: WIP
       jobAwaitTimeout: 1000
+      relatedIssuesStrategies:
+        - type: linked
+          trackLinkedIssues:
+              - linkName: "is cloned by"
+                whitelist:
+                    - projectKey: P1
+                      issues:
+                          - TEST-1
+                          - TEST-2
+                          - TEST-3
+                    - projectName: "P2 Project"
+                      issues:
+                          - TEST-1
+                          - TEST-2
+                          - TEST-4
     httpLogging:
       level: INFO
   extended-settings:
@@ -96,6 +111,69 @@ Contains parameters for synchronization with Zephyr
 + delimiter - the delimiter to use to extract version and cycle from the root event
 + statusMapping - mapping between event status and status in Zephyr. **NOTE: mapping for SUCCESS and FAILED event statuses is required**
 + jobAwaitTimeout - the timeout to await the job for adding test to a cycle/folder
++ relatedIssuesStrategies - configures the strategies to find the additional issues related to the currently processing one.
+  They will be updated using the version, cycle and folder for the current issue.
+  
+##### Strategies
+
+All strategies should be configured in the following way:
+```yaml
+relatedIssuesStrategies:
+  - type: <strat type>
+    strategySpecificParameters:
+    #...
+  - type: <another strat>
+    strategySpecificParameters:
+    #...
+```
+
+###### **linked**
+
+Finds the issues that are linked to the current one. Uses configuration to decide which links should be taken into account.
+Configuration example:
+```yaml
+relatedIssuesStrategies:
+  - type: linked
+    trackLinkedIssues:
+        - linkName: "is cloned by"
+          whitelist:
+              - projectKey: P1
+                issues:
+                    - TEST-3
+              - projectName: "P2 Project"
+                issues:
+                    - TEST-1
+                    - TEST-2
+        - linkName: "is similar to"
+          direction: INWARD # or OUTWARD
+          whitelist:
+              - projectKey: P1
+                issues:
+                    - TEST-42
+        - linkName: "is duplicated by"
+          disable: true
+          whitelist:
+              - projectKey: P3
+                issues:
+                    - *
+```
+
+###### _Parameters_
+
++ **trackLinkedIssues** - the list of links to track
+    + **linkName** - the link name to track. Can be found in the JIRA in _Issue Links_/_Linked Issues_ block. **Required parameter**
+    + **direction** - the link direction. Can be used to clarify which link to use if the **linkName** for both directions is the same.
+        Possible values are: **INWARD** - another issue is linked to us. **OUTWARD** - we are linked to another issue.
+    + **disable** - you can disable the tracking of the specific link in the configuration
+    + **whitelist** - the list contains information about which issues should be taken to follow and for which projects.
+      _E.g. we have issue A-42 that is cloned by the issue B-42 (project B).
+      If the issue A-42 is in the whitelist for project **B** this link will be followed_
+      + **projectKey** - project identifier. It is inner key for JIRA
+      + **projectName** - project name in JIRA. Can be used instead of **projectKey**.
+        _NOTE: only one of the parameters **projectKey** or **projectName** can be used_
+      + **issues** - the set of issues for with the link with specified type should be tracked if the linked issues belongs to the specified project.
+        If you want to allow to track any issue which has links with specified type and linked issue belongs to the specified project
+        you can use wildcard mark `*`
 
 #### httpLogging
 
