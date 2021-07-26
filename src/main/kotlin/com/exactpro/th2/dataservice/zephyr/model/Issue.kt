@@ -19,5 +19,23 @@ package com.exactpro.th2.dataservice.zephyr.model
 data class Issue(
     val id: Long,
     val key: String,
-    val projectKey: String
+    val projectKey: String,
+    val links: List<IssueLink> = emptyList()
 )
+
+data class IssueLink(
+    val key: String,
+    val type: LinkType
+)
+
+data class LinkType(
+    val name: String,
+    val description: String,
+    val direction: LinkDirection
+) {
+    init {
+        require(name.isNotBlank()) { "name cannot be blank" }
+        require(description.isNotBlank()) { "description cannot be blank" }
+    }
+    enum class LinkDirection { OUTWARD, INWARD }
+}

@@ -14,25 +14,22 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataservice.zephyr.model
+package com.exactpro.th2.dataservice.zephyr.strategies.linked
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-class ExecutionStatus(
-    id: Long,
-    val name: String,
-    val type: Long
-) : BaseExecutionStatus(id) {
-    override fun toString(): String {
-        return "ExecutionStatus(id='$id', name='$name', type=$type)"
-    }
-}
+class TestTrackingWhiteList {
+    @Test
+    fun `does not allow to create with projectKey and projectName`() {
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            TrackingWhiteList(
+                projectName = "name",
+                projectKey = "key",
+                issues = setOf()
+            )
+        }
 
-open class BaseExecutionStatus(
-    val id: Long
-) {
-    override fun toString(): String {
-        return "BaseExecutionStatus(id=$id)"
+        assertEquals("only one of the parameters must be set ('projectKey' or 'projectName')", exception.message)
     }
 }

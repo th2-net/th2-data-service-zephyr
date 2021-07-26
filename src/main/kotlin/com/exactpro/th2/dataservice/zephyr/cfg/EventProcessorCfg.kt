@@ -19,6 +19,7 @@ package com.exactpro.th2.dataservice.zephyr.cfg
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.grpc.EventStatus.FAILED
 import com.exactpro.th2.common.grpc.EventStatus.SUCCESS
+import com.exactpro.th2.dataservice.zephyr.strategies.RelatedIssuesStrategyConfiguration
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
@@ -29,20 +30,25 @@ class EventProcessorCfg(
      * the issue key will be extracted according to that format.
      */
     issueFormat: String,
+
+    /**
+     * The name of the JIRA connection that should be used to synchronize the test events
+     */
+    val destination: String = ConnectionCfg.DEFAULT_NAME,
+
     /**
      * Delimiter for version and cycle name in the root event
      */
     val delimiter: Char = '|',
-
     /**
      * Mapping between event status and the status in Jira by its name
      */
     val statusMapping: Map<EventStatus, String>,
+
     /**
      * Contains mapping between folder and issues' keys that correspond to that folder
      */
     val folders: Map<String, Set<String>> = emptyMap(),
-
     /**
      * Mapping between version and cycle, and issues that correspond to those values
      */
@@ -51,9 +57,14 @@ class EventProcessorCfg(
     /**
      * Time in milliseconds to await until zephyr job is done.
      */
-    val jobAwaitTimeout: Long = TimeUnit.SECONDS.toMillis(1)
+    val jobAwaitTimeout: Long = TimeUnit.SECONDS.toMillis(1),
+
+    /**
+     * The list of strategies to find the related issues
+     */
+    val relatedIssuesStrategies: List<RelatedIssuesStrategyConfiguration> = emptyList(),
 ) {
-    val issueRegexp: Pattern = issueFormat.toPattern()
+    val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {
         require(jobAwaitTimeout > 0) { "jobAwaitTimeout must be grater than 0" }
         require(statusMapping.containsKey(FAILED)) { "mapping for $FAILED status must be set" }

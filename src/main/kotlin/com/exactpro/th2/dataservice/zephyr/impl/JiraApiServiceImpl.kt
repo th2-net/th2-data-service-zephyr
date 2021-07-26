@@ -16,12 +16,17 @@
 
 package com.exactpro.th2.dataservice.zephyr.impl
 
+import com.atlassian.jira.rest.client.api.domain.IssueLinkType
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
 import com.exactpro.th2.dataservice.zephyr.JiraApiService
+import com.exactpro.th2.dataservice.zephyr.Jql
+import com.exactpro.th2.dataservice.zephyr.SearchParameters
 import com.exactpro.th2.dataservice.zephyr.cfg.BaseAuth
 import com.exactpro.th2.dataservice.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataservice.zephyr.model.AccountInfo
 import com.exactpro.th2.dataservice.zephyr.model.Issue
+import com.exactpro.th2.dataservice.zephyr.model.IssueLink
+import com.exactpro.th2.dataservice.zephyr.model.LinkType
 import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.Version
 import io.atlassian.util.concurrent.Promise
@@ -31,20 +36,17 @@ import io.ktor.client.features.auth.Auth
 import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
-import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.http.URLBuilder
-import io.ktor.http.Url
 import io.ktor.http.takeFrom
+import kotlinx.coroutines.suspendCancellableCoroutine
 import mu.KotlinLogging
 import java.net.URI
-import java.time.Duration
-import java.util.concurrent.TimeUnit
-import javax.ws.rs.core.UriBuilder
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import com.atlassian.jira.rest.client.api.domain.Issue as JiraIssue
+import com.atlassian.jira.rest.client.api.domain.IssueLink as JiraIssueLink
 
 class JiraApiServiceImpl(
     private val uri: String,
@@ -88,7 +90,22 @@ class JiraApiServiceImpl(
         check(issueKey.isNotBlank()) { "issue key cannot be blank" }
         LOGGER.trace { "Finding issue with key '$issueKey'" }
         return api.issueClient.getIssue(issueKey).await()
-            .run { Issue(id, key, project.key) }
+            .run { toIssueModel() }
+    }
+
+    override suspend fun search(jql: Jql, searchParameters: SearchParameters?): List<Issue> {
+        require(jql.isNotBlank()) { "'jql' cannot be blank" }
+        LOGGER.trace { "Executing query $jql" + (searchParameters?.let { "; parameters $it" } ?: "") }
+        return api.searchClient.run {
+            if (searchParameters == null) {
+                searchJql(jql)
+            } else {
+                with(searchParameters) {
+                    searchJql(jql, limit, startAt, null)
+                }
+            }
+        }.await()
+            .run { issues.map { it.toIssueModel() } }
     }
 
     override fun close() {
@@ -99,13 +116,32 @@ class JiraApiServiceImpl(
             .onFailure { LOGGER.error(it) { "Cannot close HTTP client" } }
     }
 
-    private suspend fun <T> Promise<T>.await(): T = suspendCoroutine { cont ->
-        done { cont.resume(it) }
-            .fail { cont.resumeWithException(it) }
-    }
 
     companion object {
         private const val REST_API_PREFIX = "rest/api/latest"
         private val LOGGER = KotlinLogging.logger { }
+
+        private fun JiraIssue.toIssueModel() =
+            Issue(id, key, project.key, issueLinks?.map { it.toIssueLinkModel() } ?: emptyList())
+
+        private fun JiraIssueLink.toIssueLinkModel(): IssueLink {
+            return IssueLink(targetIssueKey, issueLinkType.toLinkTypeModel(targetIssueUri))
+        }
+
+        private fun IssueLinkType.toLinkTypeModel(targetIssueUri: URI): LinkType {
+            val direction = when (checkNotNull(direction) {
+                "direction for link to issue $targetIssueUri is null"
+            }) {
+                IssueLinkType.Direction.OUTBOUND -> LinkType.LinkDirection.OUTWARD
+                IssueLinkType.Direction.INBOUND -> LinkType.LinkDirection.INWARD
+            }
+            return LinkType(name, description, direction)
+        }
+
+        private suspend fun <T> Promise<T>.await(): T = suspendCancellableCoroutine { cont ->
+            cont.invokeOnCancellation { this.cancel(true) }
+            done { cont.resume(it) }
+                .fail { cont.resumeWithException(it) }
+        }
     }
 }

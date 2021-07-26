@@ -14,25 +14,11 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataservice.zephyr.model
+package com.exactpro.th2.dataservice.zephyr
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.exactpro.th2.dataservice.zephyr.strategies.RelatedIssuesStrategy
+import com.exactpro.th2.dataservice.zephyr.strategies.RelatedIssuesStrategyConfiguration
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-class ExecutionStatus(
-    id: Long,
-    val name: String,
-    val type: Long
-) : BaseExecutionStatus(id) {
-    override fun toString(): String {
-        return "ExecutionStatus(id='$id', name='$name', type=$type)"
-    }
-}
-
-open class BaseExecutionStatus(
-    val id: Long
-) {
-    override fun toString(): String {
-        return "BaseExecutionStatus(id=$id)"
-    }
+interface RelatedIssuesStrategiesStorage {
+    operator fun get(cfg: RelatedIssuesStrategyConfiguration): RelatedIssuesStrategy
 }
