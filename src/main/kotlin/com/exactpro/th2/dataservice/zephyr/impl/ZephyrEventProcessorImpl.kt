@@ -17,6 +17,7 @@
 package com.exactpro.th2.dataservice.zephyr.impl
 
 import com.exactpro.th2.common.grpc.EventStatus
+import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventData
@@ -26,7 +27,11 @@ import com.exactpro.th2.dataservice.zephyr.ZephyrApiService
 import com.exactpro.th2.dataservice.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataservice.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataservice.zephyr.cfg.VersionCycleKey
+import com.exactpro.th2.dataservice.zephyr.grpc.impl.findEventsForParent
 import com.exactpro.th2.dataservice.zephyr.grpc.impl.getEventSuspend
+import com.exactpro.th2.dataservice.zephyr.grpc.impl.getEventsSuspend
+import com.exactpro.th2.dataservice.zephyr.grpc.impl.getMessageSuspend
+import com.exactpro.th2.dataservice.zephyr.grpc.impl.searchEvents
 import com.exactpro.th2.dataservice.zephyr.model.BaseExecutionStatus
 import com.exactpro.th2.dataservice.zephyr.model.Cycle
 import com.exactpro.th2.dataservice.zephyr.model.Execution
@@ -37,6 +42,9 @@ import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.Version
 import com.exactpro.th2.dataservice.zephyr.model.ZephyrJob
 import com.exactpro.th2.dataservice.zephyr.model.extensions.findVersion
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import mu.KotlinLogging
@@ -46,7 +54,7 @@ class ZephyrEventProcessorImpl(
     private val configurations: List<EventProcessorCfg>,
     private val connections: Map<String, ServiceHolder>,
     private val dataProvider: AsyncDataProviderService,
-    private val strategies: RelatedIssuesStrategiesStorage
+    private val strategies: RelatedIssuesStrategiesStorage,
 ) : ZephyrEventProcessor {
     constructor(
         configuration: EventProcessorCfg,
@@ -83,7 +91,7 @@ class ZephyrEventProcessorImpl(
         for (processorCfg in matchesIssue) {
             val connectionName = processorCfg.destination
             LOGGER.trace { "Gathering status for run based on event ${event.shortString}" }
-            val eventStatus: EventStatus = gatherExecutionStatus(event)
+            val eventStatus: EventStatus = gatherExecutionStatus(event, processorCfg.followMessageLinks)
             val services: ServiceHolder = checkNotNull(connections[connectionName]) { "Cannot find the connected services for name $connectionName" }
             val executionStatus: BaseExecutionStatus = getExecutionStatusForEvent(connectionName, eventStatus)
             EventProcessorContext(services, processorCfg).processEvent(eventName, event, executionStatus)
@@ -218,10 +226,50 @@ class ZephyrEventProcessorImpl(
         return jira.issueByKey(eventName.toIssueKey())
     }
 
-    @Suppress("RedundantSuspendModifier") // TODO: probably we will need to call the data provider in future
-    private suspend fun gatherExecutionStatus(event: EventData): EventStatus {
-        // TODO: check relations by messages
-        return event.successful
+    private suspend fun gatherExecutionStatus(event: EventData, followMessageLinks: Boolean): EventStatus {
+        val status: EventStatus = event.successful
+        return if (followMessageLinks && status != EventStatus.FAILED) {
+            LOGGER.trace { "Gathering status for event ${event.shortString}" }
+            findFailedEventByMessageLink(event)?.let { (messageId, event) ->
+                LOGGER.debug { "Event ${event.shortString} has linked event ${event.shortString} reachable by linked message ${messageId.toJson()}" }
+                event.successful
+            } ?:run {
+                LOGGER.info { "Did not find any failed events by linked messages for event ${event.shortString}" }
+                EventStatus.SUCCESS
+            }
+        } else {
+            status
+        }
+    }
+
+    private suspend fun findFailedEventByMessageLink(
+        originalEvent: EventData,
+    ): Pair<MessageID, EventData>? {
+        findFailedEventByLink(originalEvent)?.also { return it }
+        LOGGER.trace { "Checking child events for event ${originalEvent.shortString}" }
+        var resume: EventData? = null
+        do {
+            val events = dataProvider.searchEvents(findEventsForParent(originalEvent, resume)).toList()
+            for (data in events) {
+                findFailedEventByMessageLink(data)?.also { return it }
+            }
+            events.lastOrNull()?.also { resume = it }
+        } while (events.isNotEmpty())
+        return null
+    }
+
+    private suspend fun findFailedEventByLink(event: EventData): Pair<MessageID, EventData>? {
+        if (event.attachedMessageIdsCount == 0) {
+            return null
+        }
+        LOGGER.trace { "Checking message IDs attached to event ${event.shortString}" }
+        for (messageID in event.attachedMessageIdsList) {
+            val messageData = dataProvider.getMessageSuspend(messageID).takeIf { it.attachedEventIdsCount > 1 } ?: continue
+            dataProvider.getEventsSuspend(messageData.attachedEventIdsList).firstOrNull {
+                it.successful != EventStatus.SUCCESS
+            }?.also { return messageData.messageId to it }
+        }
+        return null
     }
 
     private fun EventProcessorContext.extractVersionCycleKey(

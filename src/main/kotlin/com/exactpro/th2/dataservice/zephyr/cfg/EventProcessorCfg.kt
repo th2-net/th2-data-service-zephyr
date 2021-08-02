@@ -63,6 +63,14 @@ class EventProcessorCfg(
      * The list of strategies to find the related issues
      */
     val relatedIssuesStrategies: List<RelatedIssuesStrategyConfiguration> = emptyList(),
+
+    /**
+     * Enables following linked messages. The events that are linked to the same message as one of the events in original event tree.
+     *
+     * If the links will be followed only if the original event has status [EventStatus.SUCCESS].
+     * The following will be stopped on the first event with [EventStatus.FAILED].
+     */
+    val followMessageLinks: Boolean = false,
 ) {
     val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {
