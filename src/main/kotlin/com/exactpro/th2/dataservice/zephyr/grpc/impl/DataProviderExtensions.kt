@@ -79,6 +79,7 @@ fun AsyncDataProviderService.searchEvents(request: EventSearchRequest): Flow<Eve
             }
         }
         this@searchEvents.searchEvents(request, observer)
+        awaitClose { LOGGER.trace { "Request ${request.toJson()} is closed" } }
     }
 }
 
