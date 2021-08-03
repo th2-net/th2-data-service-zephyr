@@ -230,7 +230,9 @@ class ZephyrEventProcessorImpl(
         val status: EventStatus = event.successful
         return if (followMessageLinks && status != EventStatus.FAILED) {
             LOGGER.trace { "Gathering status for event ${event.shortString}" }
-            findFailedEventByMessageLink(event)?.let { (messageId, event) ->
+            val searchResult = findFailedEventByMessageLink(event)
+            LOGGER.info { "Processed ${searchResult.processedEvents} events when following message links for event ${event.shortString}" }
+            searchResult.result?.let { (messageId, event) ->
                 LOGGER.debug { "Event ${event.shortString} has linked event ${event.shortString} reachable by linked message ${messageId.toJson()}" }
                 event.successful
             } ?:run {
@@ -242,34 +244,52 @@ class ZephyrEventProcessorImpl(
         }
     }
 
+    private class SearchResult(
+        val processedEvents: Int,
+        val result: Pair<MessageID, EventData>? = null
+    ) {
+        companion object {
+            val EMPTY = SearchResult(0)
+        }
+    }
+
     private suspend fun findFailedEventByMessageLink(
         originalEvent: EventData,
-    ): Pair<MessageID, EventData>? {
-        findFailedEventByLink(originalEvent)?.also { return it }
+    ): SearchResult {
+        var processedEvents = 0
+        findFailedEventByLink(originalEvent).also {
+            processedEvents += it.processedEvents
+            if (it.result != null) return it
+        }
         LOGGER.trace { "Checking child events for event ${originalEvent.shortString}" }
         var resume: EventData? = null
         do {
             val events = dataProvider.searchEvents(findEventsForParent(originalEvent, resume)).toList()
             for (data in events) {
-                findFailedEventByMessageLink(data)?.also { return it }
+                findFailedEventByMessageLink(data).also {
+                    processedEvents += it.processedEvents
+                    if (it.result != null) return SearchResult(processedEvents, it.result)
+                }
             }
             events.lastOrNull()?.also { resume = it }
         } while (events.isNotEmpty())
-        return null
+        return if (processedEvents == 0) SearchResult.EMPTY else SearchResult(processedEvents)
     }
 
-    private suspend fun findFailedEventByLink(event: EventData): Pair<MessageID, EventData>? {
+    private suspend fun findFailedEventByLink(event: EventData): SearchResult {
         if (event.attachedMessageIdsCount == 0) {
-            return null
+            return SearchResult.EMPTY
         }
         LOGGER.trace { "Checking message IDs attached to event ${event.shortString}" }
+        var processedEvents = 0
         for (messageID in event.attachedMessageIdsList) {
             val messageData = dataProvider.getMessageSuspend(messageID).takeIf { it.attachedEventIdsCount > 1 } ?: continue
+            processedEvents += messageData.attachedEventIdsCount
             dataProvider.getEventsSuspend(messageData.attachedEventIdsList).firstOrNull {
                 it.successful != EventStatus.SUCCESS
-            }?.also { return messageData.messageId to it }
+            }?.also { return SearchResult(processedEvents, messageData.messageId to it) }
         }
-        return null
+        return SearchResult(processedEvents)
     }
 
     private fun EventProcessorContext.extractVersionCycleKey(
