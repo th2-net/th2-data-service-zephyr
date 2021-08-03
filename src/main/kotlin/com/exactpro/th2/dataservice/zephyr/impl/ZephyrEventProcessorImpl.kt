@@ -280,7 +280,8 @@ class ZephyrEventProcessorImpl(
         if (event.attachedMessageIdsCount == 0) {
             return SearchResult.EMPTY
         }
-        LOGGER.trace { "Checking message IDs attached to event ${event.shortString}" }
+        // TODO: use trace level
+        LOGGER.info { "Checking message IDs attached to event ${event.shortString}" }
         var processedEvents = 0
         for (messageID in event.attachedMessageIdsList) {
             val messageData = dataProvider.getMessageSuspend(messageID).takeIf { it.attachedEventIdsCount > 1 } ?: continue
