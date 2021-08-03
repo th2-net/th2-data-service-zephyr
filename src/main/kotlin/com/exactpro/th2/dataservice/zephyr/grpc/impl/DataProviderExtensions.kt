@@ -27,6 +27,7 @@ import com.exactpro.th2.dataprovider.grpc.Events
 import com.exactpro.th2.dataprovider.grpc.MessageData
 import com.exactpro.th2.dataprovider.grpc.StreamResponse
 import com.exactpro.th2.dataprovider.grpc.TimeRelation
+import com.google.protobuf.BoolValue
 import com.google.protobuf.Timestamp
 import io.grpc.Context
 import io.grpc.stub.StreamObserver
@@ -90,6 +91,8 @@ fun findEventsForParent(parent: EventData, lastEvent: EventData? = null): EventS
     .setParentEvent(parent.eventId)
     .setStartTimestamp(Timestamp.newBuilder().setSeconds(parent.startTimestamp.seconds))
     .setSearchDirection(TimeRelation.NEXT)
+    .setMetadataOnly(BoolValue.of(false))
+    .setAttachedMessages(BoolValue.of(true))
     .apply {
         lastEvent?.also {
             resumeFromId = it.eventId
