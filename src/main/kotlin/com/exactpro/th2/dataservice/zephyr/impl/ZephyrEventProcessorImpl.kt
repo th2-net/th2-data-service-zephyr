@@ -261,7 +261,8 @@ class ZephyrEventProcessorImpl(
             processedEvents += it.processedEvents
             if (it.result != null) return it
         }
-        LOGGER.trace { "Checking child events for event ${originalEvent.shortString}" }
+        // TODO: use trace level
+        LOGGER.info { "Checking child events for event ${originalEvent.shortString}" }
         var resume: EventData? = null
         do {
             val events = dataProvider.searchEvents(findEventsForParent(originalEvent, resume)).toList()

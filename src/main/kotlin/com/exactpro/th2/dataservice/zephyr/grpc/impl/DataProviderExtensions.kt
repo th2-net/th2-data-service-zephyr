@@ -26,6 +26,8 @@ import com.exactpro.th2.dataprovider.grpc.EventSearchRequest
 import com.exactpro.th2.dataprovider.grpc.Events
 import com.exactpro.th2.dataprovider.grpc.MessageData
 import com.exactpro.th2.dataprovider.grpc.StreamResponse
+import com.exactpro.th2.dataprovider.grpc.TimeRelation
+import com.google.protobuf.Timestamp
 import io.grpc.Context
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -57,7 +59,8 @@ suspend fun AsyncDataProviderService.getMessageSuspend(messageID: MessageID): Me
 @OptIn(ExperimentalCoroutinesApi::class)
 fun AsyncDataProviderService.searchEvents(request: EventSearchRequest): Flow<EventData> {
     return callbackFlow {
-        LOGGER.trace { "Start request ${request.toJson()}" }
+        // TODO: use trace level
+        LOGGER.info { "Start request ${request.toJson()}" }
         val observer = object : StreamObserver<StreamResponse> {
             override fun onNext(value: StreamResponse) {
                 if (value.hasEvent()) {
@@ -85,7 +88,8 @@ fun AsyncDataProviderService.searchEvents(request: EventSearchRequest): Flow<Eve
 
 fun findEventsForParent(parent: EventData, lastEvent: EventData? = null): EventSearchRequest = EventSearchRequest.newBuilder()
     .setParentEvent(parent.eventId)
-    .setStartTimestamp(parent.startTimestamp)
+    .setStartTimestamp(Timestamp.newBuilder().setSeconds(parent.startTimestamp.seconds))
+    .setSearchDirection(TimeRelation.NEXT)
     .apply {
         lastEvent?.also {
             resumeFromId = it.eventId
