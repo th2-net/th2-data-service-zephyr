@@ -229,7 +229,7 @@ class ZephyrEventProcessorImpl(
     private suspend fun gatherExecutionStatus(event: EventData, followMessageLinks: Boolean): EventStatus {
         val status: EventStatus = event.successful
         return if (followMessageLinks && status != EventStatus.FAILED) {
-            LOGGER.trace { "Gathering status for event ${event.shortString}" }
+            LOGGER.info { "Gathering status for event ${event.shortString}" }
             val searchResult = findFailedEventByMessageLink(event)
             LOGGER.info { "Processed ${searchResult.processedEvents} events when following message links for event ${event.shortString}" }
             searchResult.result?.let { (messageId, event) ->
@@ -287,6 +287,7 @@ class ZephyrEventProcessorImpl(
         for (messageID in event.attachedMessageIdsList) {
             val messageData = dataProvider.getMessageSuspend(messageID).takeIf { it.attachedEventIdsCount > 1 } ?: continue
             processedEvents += messageData.attachedEventIdsCount
+            LOGGER.info { "Requesting events  ${messageData.attachedEventIdsList.joinToString { it.toJson() }}" }
             dataProvider.getEventsSuspend(messageData.attachedEventIdsList).firstOrNull {
                 it.successful != EventStatus.SUCCESS
             }?.also { return SearchResult(processedEvents, messageData.messageId to it) }
