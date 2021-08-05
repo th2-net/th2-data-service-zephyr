@@ -71,6 +71,11 @@ class EventProcessorCfg(
      * The following will be stopped on the first event with [EventStatus.FAILED].
      */
     val followMessageLinks: Boolean = false,
+
+    /**
+     * The set of event's name to stop following the message links
+     */
+    val doNotFollowMessageLinksFromEvents: Set<String> = emptySet(),
 ) {
     val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {

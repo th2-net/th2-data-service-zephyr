@@ -42,8 +42,6 @@ import com.exactpro.th2.dataservice.zephyr.model.Project
 import com.exactpro.th2.dataservice.zephyr.model.Version
 import com.exactpro.th2.dataservice.zephyr.model.ZephyrJob
 import com.exactpro.th2.dataservice.zephyr.model.extensions.findVersion
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -91,7 +89,7 @@ class ZephyrEventProcessorImpl(
         for (processorCfg in matchesIssue) {
             val connectionName = processorCfg.destination
             LOGGER.trace { "Gathering status for run based on event ${event.shortString}" }
-            val eventStatus: EventStatus = gatherExecutionStatus(event, processorCfg.followMessageLinks)
+            val eventStatus: EventStatus = gatherExecutionStatus(event, processorCfg.followMessageLinks, processorCfg.doNotFollowMessageLinksFromEvents)
             val services: ServiceHolder = checkNotNull(connections[connectionName]) { "Cannot find the connected services for name $connectionName" }
             val executionStatus: BaseExecutionStatus = getExecutionStatusForEvent(connectionName, eventStatus)
             EventProcessorContext(services, processorCfg).processEvent(eventName, event, executionStatus)
@@ -226,11 +224,11 @@ class ZephyrEventProcessorImpl(
         return jira.issueByKey(eventName.toIssueKey())
     }
 
-    private suspend fun gatherExecutionStatus(event: EventData, followMessageLinks: Boolean): EventStatus {
+    private suspend fun gatherExecutionStatus(event: EventData, followMessageLinks: Boolean, skipEvents: Set<String>): EventStatus {
         val status: EventStatus = event.successful
         return if (followMessageLinks && status != EventStatus.FAILED) {
             LOGGER.info { "Gathering status for event ${event.shortString}" }
-            val searchResult = findFailedEventByMessageLink(event)
+            val searchResult = findFailedEventByMessageLink(event, skipEvents)
             LOGGER.info { "Processed ${searchResult.processedEvents} events when following message links for event ${event.shortString}" }
             searchResult.result?.let { (messageId, event) ->
                 LOGGER.debug { "Event ${event.shortString} has linked event ${event.shortString} reachable by linked message ${messageId.toJson()}" }
@@ -255,6 +253,7 @@ class ZephyrEventProcessorImpl(
 
     private suspend fun findFailedEventByMessageLink(
         originalEvent: EventData,
+        skipEvents: Set<String>,
     ): SearchResult {
         var processedEvents = 0
         findFailedEventByLink(originalEvent).also {
@@ -267,7 +266,10 @@ class ZephyrEventProcessorImpl(
         do {
             val events = dataProvider.searchEvents(findEventsForParent(originalEvent, resume)).toList()
             for (data in events) {
-                findFailedEventByMessageLink(data).also {
+                if (data.eventName in skipEvents) {
+                    continue
+                }
+                findFailedEventByMessageLink(data, skipEvents).also {
                     processedEvents += it.processedEvents
                     if (it.result != null) return SearchResult(processedEvents, it.result)
                 }
