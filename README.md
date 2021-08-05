@@ -1,12 +1,12 @@
-# Zephyr data service (0.1.0)
+# Zephyr data processor (0.1.0)
 
-Zephyr data service synchronizes the test in th2 with Zephyr test.
+Zephyr data processor synchronizes the test in th2 with Zephyr test.
 It searches for events that match format in the configuration and updates (or create new) executions.
 
 
 ## Event tree
 
-When the data service finds the event it tries to extract information about folder, version and cycle.
+When the data processor finds the event it tries to extract information about folder, version and cycle.
 It checks the event tree. It should have the following format
 
 ```
@@ -17,15 +17,15 @@ Root event with name `version|CycleName|Any other information you want`
 
 ## Configuration
 
-There is an example of full configuration for the data service
+There is an example of full configuration for the data processor
 
 ```yaml
 apiVersion: th2.exactpro.com/v1
 kind: Th2Box
 metadata:
-  name: zephyr-service
+  name: zephyr-processor
 spec:
-  image-name: ghcr.io/th2-net/th2-data-service-zephyr
+  image-name: ghcr.io/th2-net/th2-data-processor-zephyr
   image-version: 0.1.0
   type: th2-act
   pins:
@@ -69,11 +69,10 @@ spec:
   extended-settings:
     service:
       enabled: true
-      type: NodePort
+      type: ClusterIP
       endpoints:
         - name: 'grpc'
           targetPort: 8080
-          nodePort: <free port>
     envVariables:
       JAVA_TOOL_OPTIONS: '-XX:+ExitOnOutOfMemoryError -XX:+UseContainerSupport -XX:MaxRAMPercentage=85'
     resources:
@@ -183,7 +182,7 @@ Contains parameters to set up the Logging for inner HTTP clients that are used t
 
 ## Links example
 
-The **data service zephyr** requires the link to the **data provider** working in gRPC mode. Link example:
+The **data processor zephyr** requires the link to the **data provider** working in gRPC mode. Link example:
 
 ```yaml
 apiVersion: th2.exactpro.com/v1

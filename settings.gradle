@@ -1,4 +1,4 @@
-rootProject.name = 'data-service-zephyr'
+rootProject.name = 'data-processor-zephyr'
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
