@@ -287,10 +287,12 @@ class ZephyrEventProcessorImpl(
         for (messageID in event.attachedMessageIdsList) {
             val messageData = dataProvider.getMessageSuspend(messageID).takeIf { it.attachedEventIdsCount > 1 } ?: continue
             processedEvents += messageData.attachedEventIdsCount
-            LOGGER.info { "Requesting events  ${messageData.attachedEventIdsList.joinToString { it.toJson() }}" }
-            dataProvider.getEventsSuspend(messageData.attachedEventIdsList).firstOrNull {
-                it.successful != EventStatus.SUCCESS
-            }?.also { return SearchResult(processedEvents, messageData.messageId to it) }
+            LOGGER.info { "Requesting events for message ${messageData.messageId.toJson()}: ${messageData.attachedEventIdsList.joinToString { it.toJson() }}" }
+            messageData.attachedEventIdsList.chunked(64).forEach { ids ->
+                dataProvider.getEventsSuspend(ids).firstOrNull {
+                    it.successful != EventStatus.SUCCESS
+                }?.also { return SearchResult(processedEvents, messageData.messageId to it) }
+            }
         }
         return SearchResult(processedEvents)
     }
