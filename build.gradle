@@ -35,7 +35,7 @@ dependencies {
 
     // the library for interaction with infra API
     implementation 'com.exactpro.th2:common:3.16.3'
-    implementation 'com.exactpro.th2:grpc-crawler-data-service:0.0.1'
+    implementation 'com.exactpro.th2:grpc-crawler-data-processor:0.0.1'
 
     // Auto service
     compileOnly 'com.google.auto.service:auto-service-annotations:1.0'
@@ -95,7 +95,7 @@ jar {
 }
 
 application {
-    mainClass.set('com.exactpro.th2.dataservice.zephyr.BoxMain')
+    mainClass.set('com.exactpro.th2.dataprocessor.zephyr.BoxMain')
 }
 
 applicationName = 'service'
