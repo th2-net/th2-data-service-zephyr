@@ -19,8 +19,6 @@ package com.exactpro.th2.dataprocessor.zephyr.impl
 import com.exactpro.th2.common.event.EventUtils.toEventID
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataprocessor.zephyr.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.RelatedIssuesStrategiesStorage
 import com.exactpro.th2.dataprocessor.zephyr.ZephyrApiService
@@ -35,13 +33,13 @@ import com.exactpro.th2.dataprocessor.zephyr.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategy
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyConfiguration
+import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
+import com.exactpro.th2.dataprovider.grpc.EventResponse
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.eq
 import com.nhaarman.mockitokotlin2.inOrder
-import com.nhaarman.mockitokotlin2.isNull
 import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.never
 import com.nhaarman.mockitokotlin2.same
 import com.nhaarman.mockitokotlin2.whenever
 import io.grpc.stub.StreamObserver
@@ -50,8 +48,6 @@ import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.EnumSource
 import java.time.Instant
 
 @ExperimentalCoroutinesApi
@@ -105,16 +101,16 @@ class TestZephyrEventProcessorImplWithStrategies {
     @Test
     fun `adds executions for related issues`() {
         TestCoroutineScope().runBlockingTest {
-            val root = EventData.newBuilder()
+            val root = EventResponse.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
                 .build()
-            val folderEvent = EventData.newBuilder()
+            val folderEvent = EventResponse.newBuilder()
                 .setEventId(toEventID("2"))
                 .setParentEventId(root.eventId)
                 .setEventName("TestFolder")
                 .build()
-            val issue = EventData.newBuilder()
+            val issue = EventResponse.newBuilder()
                 .setEventId(toEventID("3"))
                 .setParentEventId(folderEvent.eventId)
                 .setEventName("TEST_1234")
@@ -122,7 +118,7 @@ class TestZephyrEventProcessorImplWithStrategies {
             val eventsById = arrayOf(root, folderEvent, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
                 val id = it.arguments[0] as EventID
-                val observer = it.arguments[1] as StreamObserver<EventData>
+                val observer = it.arguments[1] as StreamObserver<EventResponse>
                 eventsById[id]?.let {
                     observer.onNext(it)
                     observer.onCompleted()

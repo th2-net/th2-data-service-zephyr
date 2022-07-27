@@ -19,7 +19,7 @@ package com.exactpro.th2.dataprocessor.zephyr.impl
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventData
+import com.exactpro.th2.dataprovider.grpc.EventResponse
 import com.exactpro.th2.dataprocessor.zephyr.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.RelatedIssuesStrategiesStorage
 import com.exactpro.th2.dataprocessor.zephyr.ZephyrApiService
@@ -71,7 +71,7 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    override suspend fun onEvent(event: EventData): Boolean {
+    override suspend fun onEvent(event: EventResponse): Boolean {
         val eventName = event.eventName
         LOGGER.trace { "Processing event ${event.toJson()}" }
         val matchesIssue: List<EventProcessorCfg> = matchesIssue(eventName)
@@ -100,11 +100,11 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private suspend fun EventProcessorContext.processEvent(eventName: String, event: EventData, executionStatus: BaseExecutionStatus) {
+    private suspend fun EventProcessorContext.processEvent(eventName: String, event: EventResponse, executionStatus: BaseExecutionStatus) {
         LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
         val issue: Issue = getIssue(eventName)
-        val rootEvent: EventData? = findRootEvent(event)
-        val folderEvent: EventData? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.eventId) {
+        val rootEvent: EventResponse? = findRootEvent(event)
+        val folderEvent: EventResponse? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.eventId) {
             dataProvider.getEventSuspend(event.parentEventId)
         } else {
             null
@@ -127,7 +127,7 @@ class ZephyrEventProcessorImpl(
     }
 
     private suspend fun EventProcessorContext.updateOrCreateExecution(
-        event: EventData,
+        event: EventResponse,
         issue: Issue,
         versionCycleKey: VersionCycleKey,
         folderName: String?,
@@ -162,11 +162,11 @@ class ZephyrEventProcessorImpl(
         )
     }
 
-    private suspend fun findRootEvent(event: EventData): EventData? {
+    private suspend fun findRootEvent(event: EventResponse): EventResponse? {
         if (!event.hasParentEventId()) {
             return null
         }
-        var curEvent: EventData = event
+        var curEvent: EventResponse = event
         while (curEvent.hasParentEventId()) {
             curEvent = dataProvider.getEventSuspend(curEvent.parentEventId)
         }
@@ -219,13 +219,13 @@ class ZephyrEventProcessorImpl(
     }
 
     @Suppress("RedundantSuspendModifier") // TODO: probably we will need to call the data provider in future
-    private suspend fun gatherExecutionStatus(event: EventData): EventStatus {
+    private suspend fun gatherExecutionStatus(event: EventResponse): EventStatus {
         // TODO: check relations by messages
-        return event.successful
+        return event.status
     }
 
     private fun EventProcessorContext.extractVersionCycleKey(
-        parent: EventData?,
+        parent: EventResponse?,
         issue: Issue,
     ): VersionCycleKey {
         return if (parent == null) {
@@ -271,7 +271,7 @@ class ZephyrEventProcessorImpl(
 
     companion object {
         private val LOGGER = KotlinLogging.logger { }
-        private val EventData.shortString: String
+        private val EventResponse.shortString: String
             get() = "id: ${eventId.toJson()}; name: $eventName"
     }
 }

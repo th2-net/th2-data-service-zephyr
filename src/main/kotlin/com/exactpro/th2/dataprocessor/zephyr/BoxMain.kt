@@ -20,12 +20,12 @@ package com.exactpro.th2.dataprocessor.zephyr
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils.createMessageBean
 import com.exactpro.th2.common.grpc.EventBatch
-import com.exactpro.th2.common.metrics.liveness
-import com.exactpro.th2.common.metrics.readiness
+import com.exactpro.th2.common.metrics.LIVENESS_MONITOR
+import com.exactpro.th2.common.metrics.READINESS_MONITOR
 import com.exactpro.th2.common.schema.factory.CommonFactory
 import com.exactpro.th2.common.schema.factory.extensions.getCustomConfiguration
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventData
+import com.exactpro.th2.dataprovider.grpc.EventResponse
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg.Companion.MAPPER
 import com.exactpro.th2.dataprocessor.zephyr.cfg.util.validate
@@ -82,7 +82,7 @@ fun main(args: Array<String>) {
         }
 
         // The BOX is alive
-        liveness = true
+        LIVENESS_MONITOR.enable()
 
         val eventRouter = factory.eventBatchRouter
         val root = Event.start().endTimestamp()
@@ -133,7 +133,7 @@ fun main(args: Array<String>) {
             }.onFailure { LOGGER.error(it) { "Cannot send event ${event.id}" } }
         }
 
-        val onError: (EventData?, Throwable) -> Unit = { event, t ->
+        val onError: (EventResponse?, Throwable) -> Unit = { event, t ->
             runCatching {
                 eventRouter.send(
                     EventBatch.newBuilder()
@@ -169,7 +169,7 @@ fun main(args: Array<String>) {
         }
 
         // The BOX is ready to work
-        readiness = true
+        READINESS_MONITOR.enable()
 
         awaitShutdown(lock, condition)
     } catch (ex: Exception) {
@@ -184,7 +184,7 @@ private fun configureShutdownHook(resources: Deque<AutoCloseable>, lock: Reentra
         name = "Shutdown hook"
     ) {
         LOGGER.info { "Shutdown start" }
-        readiness = false
+        READINESS_MONITOR.disable()
         try {
             lock.lock()
             condition.signalAll()
@@ -198,7 +198,7 @@ private fun configureShutdownHook(resources: Deque<AutoCloseable>, lock: Reentra
                 LOGGER.error(e) { "Cannot close resource ${resource::class}" }
             }
         }
-        liveness = false
+        LIVENESS_MONITOR.disable()
         LOGGER.info { "Shutdown end" }
     })
 }
