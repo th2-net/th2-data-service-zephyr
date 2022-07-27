@@ -26,7 +26,7 @@ compileTestKotlin {
 }
 
 ext {
-    ktorVersion = '1.5.4'
+    ktorVersion = '1.6.5'
 }
 
 dependencies {

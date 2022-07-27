@@ -47,11 +47,13 @@ import com.exactpro.th2.dataprocessor.zephyr.model.ZephyrJob
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
 import io.ktor.client.features.auth.Auth
+import io.ktor.client.features.auth.providers.BasicAuthCredentials
 import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
 import io.ktor.client.features.logging.Logging
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.http.ContentType
@@ -74,9 +76,10 @@ class ZephyrApiServiceImpl(
         when (credentials) {
             is BaseAuth -> Auth {
                 basic {
-                    username = credentials.username
-                    password = credentials.key
-                    sendWithoutRequest = true
+                    credentials {
+                        BasicAuthCredentials(credentials.username, credentials.key)
+                    }
+                    sendWithoutRequest { true }
                 }
             }
             is JwtAuth -> install(JwtAuthentication) {
@@ -97,12 +100,10 @@ class ZephyrApiServiceImpl(
 
     override suspend fun getCycle(cycleName: String, project: Project, version: Version): Cycle? {
         LOGGER.trace { "Getting cycle for with name '$cycleName'" }
-        val cycles = client.get<CyclesById>(URLBuilder("$baseApiUrl/cycle").apply {
-            with(parameters) {
-                append(PROJECT_ID_PARAMETER, project.id.toString())
-                append(VERSION_ID_PARAMETER, version.id.toString())
-            }
-        }.build()).cycles
+        val cycles = client.get<CyclesById>("$baseApiUrl/cycle") {
+            parameter(PROJECT_ID_PARAMETER, project.id.toString())
+            parameter(VERSION_ID_PARAMETER, version.id.toString())
+        }.cycles
         LOGGER.debug { "Found ${cycles.size} cycle(s) for project ${project.key} and version $version" }
         return cycles
             .asSequence()
@@ -113,12 +114,10 @@ class ZephyrApiServiceImpl(
     override suspend fun getFolder(cycle: Cycle, folderName: String): Folder? {
         require(folderName.isNotEmpty()) { "Folder name must not be empty" }
         LOGGER.trace { "Getting folder $folderName for project ${cycle.projectId}, version ${cycle.versionId} and cycle ${cycle.name}" }
-        val folders = client.get<List<Folder>>(URLBuilder("$baseApiUrl/cycle/${cycle.id}/folders").apply {
-            with(parameters) {
-                append(PROJECT_ID_PARAMETER, cycle.projectId.toString())
-                append(VERSION_ID_PARAMETER, cycle.versionId.toString())
-            }
-        }.build())
+        val folders = client.get<List<Folder>>("$baseApiUrl/cycle/${cycle.id}/folders") {
+            parameter(PROJECT_ID_PARAMETER, cycle.projectId.toString())
+            parameter(VERSION_ID_PARAMETER, cycle.versionId.toString())
+        }
         LOGGER.debug { "Found ${folders.size} folder(s) for cycle ${cycle.name} in project ${cycle.projectId} and version ${cycle.versionId}" }
         return folders.find { it.name == folderName }
     }
@@ -198,11 +197,9 @@ class ZephyrApiServiceImpl(
     override suspend fun awaitJobDone(job: ZephyrJob) {
         LOGGER.trace { "Awaiting job ${job.token} with type $job.type is done" }
         while (coroutineContext.isActive) {
-            val result = client.get<JobResult>(URLBuilder("$baseApiUrl/execution/jobProgress/${job.token.jobProgressToken}").apply {
-                with(parameters) {
-                    append(JOB_TYPE_PARAMETER, job.type.value)
-                }
-            }.build())
+            val result = client.get<JobResult>("$baseApiUrl/execution/jobProgress/${job.token.jobProgressToken}") {
+                parameter(JOB_TYPE_PARAMETER, job.type.value)
+            }
             // TODO:
             //  the response contains information if the job done successfully or not.
             //  But it is in HTML format and probably might change from request to request
@@ -218,8 +215,7 @@ class ZephyrApiServiceImpl(
 
     override suspend fun findExecution(project: Project, version: Version, cycle: Cycle, folder: Folder?, test: Issue): Execution? {
         LOGGER.trace { "Searching for execution of issue ${test.key} for version $version in cycle ${cycle.name}${folder?.run { " folder $name" } ?: ""}" }
-        val response = client.get<ExecutionSearchResponse>(URLBuilder("$baseApiUrl/zql/executeSearch").apply {
-            with(parameters) {
+        val response = client.get<ExecutionSearchResponse>("$baseApiUrl/zql/executeSearch") {
                 val query = buildString {
                     append("""project = "${project.name}" AND cycleName = "${cycle.name}" AND issue = "${test.key}" AND fixVersion = ${version.name}""")
                     if (folder != null) {
@@ -228,9 +224,8 @@ class ZephyrApiServiceImpl(
                         append(" AND folderName is EMPTY")
                     }
                 }
-                append(ZQL_QUERY_PARAMETER, query)
-            }
-        }.build())
+                parameter(ZQL_QUERY_PARAMETER, query)
+        }
         val executions: List<Execution> = response.executions
         LOGGER.debug { "Found ${executions.size} execution(s)" }
         check(executions.size < 2) {

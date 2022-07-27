@@ -33,6 +33,7 @@ import io.atlassian.util.concurrent.Promise
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
 import io.ktor.client.features.auth.Auth
+import io.ktor.client.features.auth.providers.BasicAuthCredentials
 import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
@@ -59,9 +60,10 @@ class JiraApiServiceImpl(
     private val httpClient = HttpClient(Java) {
         Auth {
             basic {
-                this.username = auth.username
-                this.password = auth.key
-                sendWithoutRequest = true // send in first request instead of sending it after getting 401 response
+                credentials {
+                    BasicAuthCredentials(auth.username, auth.key)
+                }
+                sendWithoutRequest { true }
             }
         }
         Json {
