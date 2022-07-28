@@ -71,8 +71,9 @@ class ConnectionCfg(
     defaultImpl = BaseAuth::class
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(name = "base", value = BaseAuth::class),
-    JsonSubTypes.Type(name = "jwt", value = JwtAuth::class)
+    JsonSubTypes.Type(name = "standard", value = BaseAuth::class),
+    JsonSubTypes.Type(name = "jwt", value = JwtAuth::class),
+    JsonSubTypes.Type(name = "bearer", value = BaererAuth::class),
 )
 sealed class Credentials
 
@@ -97,4 +98,12 @@ class JwtAuth(
         require(secretKey.isNotBlank()) { "secretKey cannot be blank" }
     }
     var accountId: String? = null
+}
+
+class BaererAuth(
+    val token: String,
+) : Credentials() {
+    init {
+        require(token.isNotBlank()) { "token cannot be blank" }
+    }
 }

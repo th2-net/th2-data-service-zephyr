@@ -17,7 +17,7 @@
 package com.exactpro.th2.dataprocessor.zephyr.strategies.linked
 
 import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategy
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyFactory
 import com.exactpro.th2.dataprocessor.zephyr.strategies.StrategyType

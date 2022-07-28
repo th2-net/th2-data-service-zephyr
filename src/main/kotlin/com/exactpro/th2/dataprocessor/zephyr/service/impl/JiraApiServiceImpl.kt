@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.impl
+package com.exactpro.th2.dataprocessor.zephyr.service.impl
 
 import com.atlassian.jira.rest.client.api.domain.IssueLinkType
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
-import com.exactpro.th2.dataprocessor.zephyr.JiraApiService
-import com.exactpro.th2.dataprocessor.zephyr.Jql
-import com.exactpro.th2.dataprocessor.zephyr.SearchParameters
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.Jql
+import com.exactpro.th2.dataprocessor.zephyr.service.api.SearchParameters
 import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
-import com.exactpro.th2.dataprocessor.zephyr.model.AccountInfo
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.model.IssueLink
-import com.exactpro.th2.dataprocessor.zephyr.model.LinkType
-import com.exactpro.th2.dataprocessor.zephyr.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.model.Version
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.IssueLink
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.LinkType
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import io.atlassian.util.concurrent.Promise
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java

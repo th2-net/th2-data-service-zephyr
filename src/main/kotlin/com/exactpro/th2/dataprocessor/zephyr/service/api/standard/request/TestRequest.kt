@@ -14,12 +14,24 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.impl
+package com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
+import com.fasterxml.jackson.annotation.JsonInclude
 
-class ServiceHolder(
-    val jira: JiraApiService,
-    val zephyr: ZephyrApiService
-)
+typealias Method = String
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+class TestRequest(
+    val issues: List<String>,
+    val projectId: Long,
+    val versionId: Long,
+    val method: Method,
+    val cycleId: String,
+    val folderId: String? = null
+) {
+    companion object {
+        const val BY_KEYS: Method = "1"
+        const val BY_JQL: Method = "2"
+        const val FROM_CYCLE: Method = "3"
+    }
+}

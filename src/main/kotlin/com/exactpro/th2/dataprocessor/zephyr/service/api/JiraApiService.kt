@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr
+package com.exactpro.th2.dataprocessor.zephyr.service.api
 
-import com.exactpro.th2.dataprocessor.zephyr.model.AccountInfo
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 
 
 interface JiraApiService : AutoCloseable {

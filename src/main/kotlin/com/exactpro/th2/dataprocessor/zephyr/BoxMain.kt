@@ -30,10 +30,10 @@ import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg.Companion.MAPPER
 import com.exactpro.th2.dataprocessor.zephyr.cfg.util.validate
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.ZephyrServiceImpl
-import com.exactpro.th2.dataprocessor.zephyr.impl.JiraApiServiceImpl
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.JiraApiServiceImpl
 import com.exactpro.th2.dataprocessor.zephyr.impl.RelatedIssuesStrategiesStorageImpl
 import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
-import com.exactpro.th2.dataprocessor.zephyr.impl.ZephyrApiServiceImpl
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.standard.ZephyrApiServiceImpl
 import com.exactpro.th2.dataprocessor.zephyr.impl.ZephyrEventProcessorImpl
 import mu.KotlinLogging
 import java.util.Deque

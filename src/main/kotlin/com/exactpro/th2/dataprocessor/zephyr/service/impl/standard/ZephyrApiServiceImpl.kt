@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,89 +14,52 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.impl
+package com.exactpro.th2.dataprocessor.zephyr.service.impl.standard
 
-import com.exactpro.th2.dataprocessor.zephyr.ZephyrApiService
-import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
-import com.exactpro.th2.dataprocessor.zephyr.cfg.JwtAuth
-import com.exactpro.th2.dataprocessor.zephyr.model.BaseCycle
-import com.exactpro.th2.dataprocessor.zephyr.model.BaseFolder
-import com.exactpro.th2.dataprocessor.zephyr.model.Cycle
-import com.exactpro.th2.dataprocessor.zephyr.model.CycleCreateResponse
-import com.exactpro.th2.dataprocessor.zephyr.model.CyclesById
-import com.exactpro.th2.dataprocessor.zephyr.model.Execution
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionRequest
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionResponse
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionSearchResponse
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionStatus
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionUpdate
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionUpdateRequest
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionUpdateResponse
-import com.exactpro.th2.dataprocessor.zephyr.model.Folder
-import com.exactpro.th2.dataprocessor.zephyr.model.FolderCreateResponse
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.model.JobResult
-import com.exactpro.th2.dataprocessor.zephyr.model.JobToken
-import com.exactpro.th2.dataprocessor.zephyr.model.JobType
-import com.exactpro.th2.dataprocessor.zephyr.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.model.TestRequest
-import com.exactpro.th2.dataprocessor.zephyr.model.Version
-import com.exactpro.th2.dataprocessor.zephyr.model.ZephyrJob
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.java.Java
-import io.ktor.client.features.auth.Auth
-import io.ktor.client.features.auth.providers.BasicAuthCredentials
-import io.ktor.client.features.auth.providers.basic
-import io.ktor.client.features.json.JacksonSerializer
-import io.ktor.client.features.json.Json
-import io.ktor.client.features.logging.Logging
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseCycle
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseFolder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.CycleCreateResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.CyclesById
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionRequest
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionSearchResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ExecutionStatus
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdate
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdateRequest
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdateResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.FolderCreateResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.JobResult
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.JobToken
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.JobType
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.TestRequest
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.http.ContentType
-import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.contentType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import mu.KotlinLogging
-import java.net.URI
 import kotlin.coroutines.coroutineContext
 
 class ZephyrApiServiceImpl(
     url: String,
     credentials: Credentials,
-    private val httpLogging: HttpLoggingConfiguration
-) : ZephyrApiService {
-    private val baseUrl: String = url.run { if (endsWith('/')) this else "$this/" }
-    private val client = HttpClient(Java) {
-        when (credentials) {
-            is BaseAuth -> Auth {
-                basic {
-                    credentials {
-                        BasicAuthCredentials(credentials.username, credentials.key)
-                    }
-                    sendWithoutRequest { true }
-                }
-            }
-            is JwtAuth -> install(JwtAuthentication) {
-                accessKey = credentials.accessKey
-                secretKey = credentials.secretKey
-                accountId = requireNotNull(credentials.accountId) { "accountId must be set" }
-                baseUrl = URI.create(this@ZephyrApiServiceImpl.baseUrl)
-            }
-        }
-        Json {
-            serializer = JacksonSerializer()
-        }
-        Logging {
-            level = httpLogging.level
-        }
-    }
-    private val baseApiUrl: String = "$baseUrl/$API_PREFIX"
+    httpLogging: HttpLoggingConfiguration
+) : BaseZephyrApiService(url, credentials, httpLogging, API_PREFIX), ZephyrApiService {
 
     override suspend fun getCycle(cycleName: String, project: Project, version: Version): Cycle? {
         LOGGER.trace { "Getting cycle for with name '$cycleName'" }

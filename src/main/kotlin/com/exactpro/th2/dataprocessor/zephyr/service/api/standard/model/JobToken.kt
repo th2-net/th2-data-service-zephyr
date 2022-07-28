@@ -14,25 +14,8 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.model
+package com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-class ExecutionStatus(
-    id: Long,
-    val name: String,
-    val type: Long
-) : BaseExecutionStatus(id) {
-    override fun toString(): String {
-        return "ExecutionStatus(id='$id', name='$name', type=$type)"
-    }
-}
-
-open class BaseExecutionStatus(
-    val id: Long
-) {
-    override fun toString(): String {
-        return "BaseExecutionStatus(id=$id)"
-    }
-}
+data class JobToken(
+    val jobProgressToken: String
+)

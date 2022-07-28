@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,20 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr
+package com.exactpro.th2.dataprocessor.zephyr.service.api.standard
 
-import com.exactpro.th2.dataprocessor.zephyr.model.Cycle
-import com.exactpro.th2.dataprocessor.zephyr.model.Execution
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionRequest
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionResponse
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionStatus
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionUpdate
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionUpdateResponse
-import com.exactpro.th2.dataprocessor.zephyr.model.Folder
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.model.JobResult
-import com.exactpro.th2.dataprocessor.zephyr.model.JobToken
-import com.exactpro.th2.dataprocessor.zephyr.model.JobType
-import com.exactpro.th2.dataprocessor.zephyr.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.model.Version
-import com.exactpro.th2.dataprocessor.zephyr.model.ZephyrJob
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionRequest
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ExecutionStatus
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdate
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdateResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
 
 interface ZephyrApiService : AutoCloseable {
     suspend fun getCycle(cycleName: String, project: Project, version: Version): Cycle?

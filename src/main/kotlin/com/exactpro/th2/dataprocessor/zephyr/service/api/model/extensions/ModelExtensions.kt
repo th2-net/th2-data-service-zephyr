@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.model
+package com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions
 
-data class JobToken(
-    val jobProgressToken: String
-)
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+
+fun Project.findVersion(name: String): Version? = versions.find { it.name == name }

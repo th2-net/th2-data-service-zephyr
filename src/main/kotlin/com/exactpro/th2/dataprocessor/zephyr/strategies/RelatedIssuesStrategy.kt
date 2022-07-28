@@ -17,7 +17,7 @@
 package com.exactpro.th2.dataprocessor.zephyr.strategies
 
 import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 typealias StrategyType = String

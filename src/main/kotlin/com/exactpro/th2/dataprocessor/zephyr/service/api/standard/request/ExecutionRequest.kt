@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.model
+package com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request
 
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseExecutionStatus
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ExecutionStatus
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude

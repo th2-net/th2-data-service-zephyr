@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.model
+package com.exactpro.th2.dataprocessor.zephyr.service.api.model
 
-import com.fasterxml.jackson.annotation.JsonInclude
-
-typealias Method = String
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
-class TestRequest(
-    val issues: List<String>,
-    val projectId: Long,
-    val versionId: Long,
-    val method: Method,
-    val cycleId: String,
-    val folderId: String? = null
+data class Project(
+    val id: Long,
+    val key: String,
+    val name: String?,
+    val versions: List<Version>
 ) {
-    companion object {
-        const val BY_KEYS: Method = "1"
-        const val BY_JQL: Method = "2"
-        const val FROM_CYCLE: Method = "3"
-    }
+    constructor(id: Long?, key: String, name: String?, versions: List<Version>): this(id ?: -1, key, name, versions)
+}
+
+data class Version(
+    val id: Long,
+    val name: String
+) {
+    constructor(id: Long?, name: String?) : this(id ?: -1, name ?: "unknown version name")
 }

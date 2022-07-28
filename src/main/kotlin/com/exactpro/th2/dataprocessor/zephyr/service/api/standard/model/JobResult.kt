@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.model
+package com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class AccountInfo(
-    val accountId: String
+data class JobResult(
+    val timeTaken: String,
+    val progress: Double,
+    val message: String
 )

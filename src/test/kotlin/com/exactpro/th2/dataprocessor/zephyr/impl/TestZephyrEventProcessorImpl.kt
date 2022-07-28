@@ -21,17 +21,17 @@ import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventResponse
-import com.exactpro.th2.dataprocessor.zephyr.JiraApiService
-import com.exactpro.th2.dataprocessor.zephyr.ZephyrApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ConnectionCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
-import com.exactpro.th2.dataprocessor.zephyr.model.Cycle
-import com.exactpro.th2.dataprocessor.zephyr.model.Execution
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionStatus
-import com.exactpro.th2.dataprocessor.zephyr.model.Folder
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.model.Version
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ExecutionStatus
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.eq
@@ -109,10 +109,10 @@ class TestZephyrEventProcessorImpl {
                 .build()
             val eventsById = arrayOf(root, anotherLevel, folderEvent, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
-                val id = it.arguments[0] as EventID
-                val observer = it.arguments[1] as StreamObserver<EventResponse>
-                eventsById[id]?.let {
-                    observer.onNext(it)
+                val id: EventID = it.getArgument(0)
+                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                eventsById[id]?.let { event ->
+                    observer.onNext(event)
                     observer.onCompleted()
                 } ?: run { observer.onError(RuntimeException("Unknown id $id")) }
             }
@@ -172,10 +172,10 @@ class TestZephyrEventProcessorImpl {
                 .build()
             val eventsById = arrayOf(root, folderEvent, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
-                val id = it.arguments[0] as EventID
-                val observer = it.arguments[1] as StreamObserver<EventResponse>
-                eventsById[id]?.let {
-                    observer.onNext(it)
+                val id: EventID = it.getArgument(0)
+                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                eventsById[id]?.let { event ->
+                    observer.onNext(event)
                     observer.onCompleted()
                 } ?: run { observer.onError(RuntimeException("Unknown id $id")) }
             }
@@ -222,10 +222,10 @@ class TestZephyrEventProcessorImpl {
                 .build()
             val eventsById = arrayOf(root, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
-                val id = it.arguments[0] as EventID
-                val observer = it.arguments[1] as StreamObserver<EventResponse>
-                eventsById[id]?.let {
-                    observer.onNext(it)
+                val id: EventID = it.getArgument(0)
+                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                eventsById[id]?.let { event ->
+                    observer.onNext(event)
                     observer.onCompleted()
                 } ?: run { observer.onError(RuntimeException("Unknown id $id")) }
             }

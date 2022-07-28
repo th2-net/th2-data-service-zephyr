@@ -20,23 +20,23 @@ import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventResponse
-import com.exactpro.th2.dataprocessor.zephyr.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.RelatedIssuesStrategiesStorage
-import com.exactpro.th2.dataprocessor.zephyr.ZephyrApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.getEventSuspend
-import com.exactpro.th2.dataprocessor.zephyr.model.BaseExecutionStatus
-import com.exactpro.th2.dataprocessor.zephyr.model.Cycle
-import com.exactpro.th2.dataprocessor.zephyr.model.Execution
-import com.exactpro.th2.dataprocessor.zephyr.model.ExecutionUpdate
-import com.exactpro.th2.dataprocessor.zephyr.model.Folder
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.model.Version
-import com.exactpro.th2.dataprocessor.zephyr.model.ZephyrJob
-import com.exactpro.th2.dataprocessor.zephyr.model.extensions.findVersion
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseExecutionStatus
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdate
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions.findVersion
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import mu.KotlinLogging
@@ -134,7 +134,7 @@ class ZephyrEventProcessorImpl(
         executionStatus: BaseExecutionStatus
     ) {
         val project: Project = getProject(issue)
-        val (cycleName: String, version: Version) = with(versionCycleKey) {
+        val (cycleName: String, version: com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version) = with(versionCycleKey) {
             cycle to checkNotNull(project.findVersion(version)) {
                 "Cannot find version $version for project ${project.name}"
             }
