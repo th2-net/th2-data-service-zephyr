@@ -18,25 +18,25 @@ package com.exactpro.th2.dataprocessor.zephyr.impl
 
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.message.toJson
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
-import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.RelatedIssuesStrategiesStorage
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.getEventSuspend
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseExecutionStatus
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdate
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions.findVersion
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseExecutionStatus
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdate
+import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
+import com.exactpro.th2.dataprovider.grpc.EventResponse
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import mu.KotlinLogging
@@ -46,7 +46,7 @@ class ZephyrEventProcessorImpl(
     private val configurations: List<EventProcessorCfg>,
     private val connections: Map<String, ServiceHolder>,
     private val dataProvider: AsyncDataProviderService,
-    private val strategies: RelatedIssuesStrategiesStorage
+    private val strategies: RelatedIssuesStrategiesStorage,
 ) : ZephyrEventProcessor {
     constructor(
         configuration: EventProcessorCfg,

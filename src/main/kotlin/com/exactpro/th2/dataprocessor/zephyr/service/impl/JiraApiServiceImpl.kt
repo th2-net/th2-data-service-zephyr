@@ -18,11 +18,11 @@ package com.exactpro.th2.dataprocessor.zephyr.service.impl
 
 import com.atlassian.jira.rest.client.api.domain.IssueLinkType
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
+import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
+import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.Jql
 import com.exactpro.th2.dataprocessor.zephyr.service.api.SearchParameters
-import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
-import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.IssueLink

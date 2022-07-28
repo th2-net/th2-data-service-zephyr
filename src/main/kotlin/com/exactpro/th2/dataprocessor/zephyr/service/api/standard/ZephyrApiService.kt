@@ -16,6 +16,9 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.service.api.standard
 
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionRequest
@@ -24,9 +27,6 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Executio
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdate
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdateResponse
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
 
 interface ZephyrApiService : AutoCloseable {

@@ -16,10 +16,12 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.service.impl.standard
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
-import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseCycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.BaseFolder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
@@ -35,14 +37,12 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execut
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdateResponse
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.FolderCreateResponse
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.JobResult
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.JobToken
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.JobType
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.TestRequest
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
