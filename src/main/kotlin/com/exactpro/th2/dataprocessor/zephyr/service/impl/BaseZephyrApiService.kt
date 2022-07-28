@@ -16,58 +16,25 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.service.impl
 
-import com.exactpro.th2.dataprocessor.zephyr.cfg.BaererAuth
-import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
-import com.exactpro.th2.dataprocessor.zephyr.cfg.JwtAuth
-import com.exactpro.th2.dataprocessor.zephyr.service.JwtAuthentication
+import com.exactpro.th2.dataprocessor.zephyr.service.auth.AuthenticateWith
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
-import io.ktor.client.features.auth.Auth
-import io.ktor.client.features.auth.providers.BasicAuthCredentials
-import io.ktor.client.features.auth.providers.BearerTokens
-import io.ktor.client.features.auth.providers.basic
-import io.ktor.client.features.auth.providers.bearer
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
 import io.ktor.client.features.logging.Logging
-import java.net.URI
+import mu.KotlinLogging
 
 abstract class BaseZephyrApiService(
     url: String,
     credentials: Credentials,
     httpLogging: HttpLoggingConfiguration,
     apiPrefix: String,
-) {
-    private val baseUrl: String = url.run { if (endsWith('/')) this else "$this/" }
+) : AutoCloseable {
+    protected val baseUrl: String = url.run { if (endsWith('/')) trimEnd('/') else this }
     protected val client = HttpClient(Java) {
-        when (credentials) {
-            is BaseAuth -> Auth {
-                basic {
-                    credentials {
-                        BasicAuthCredentials(credentials.username, credentials.key)
-                    }
-                    sendWithoutRequest { true }
-                }
-            }
-
-            is BaererAuth -> Auth {
-                bearer {
-                    val tokens = BearerTokens(credentials.token, credentials.token)
-                    loadTokens { tokens }
-                    refreshTokens { tokens }
-                    sendWithoutRequest { true }
-                }
-            }
-
-            is JwtAuth -> install(JwtAuthentication) {
-                accessKey = credentials.accessKey
-                secretKey = credentials.secretKey
-                accountId = requireNotNull(credentials.accountId) { "accountId must be set" }
-                baseUrl = URI.create(this@BaseZephyrApiService.baseUrl)
-            }
-        }
+        AuthenticateWith(credentials, baseUrl)
         Json {
             serializer = JacksonSerializer()
         }
@@ -75,5 +42,15 @@ abstract class BaseZephyrApiService(
             level = httpLogging.level
         }
     }
-    protected val baseApiUrl: String = "$baseUrl/${apiPrefix}"
+    protected val baseApiUrl: String = if (apiPrefix.isEmpty()) baseUrl else "$baseUrl/${apiPrefix}"
+
+    override fun close() {
+        LOGGER.info { "Disposing resources for ${this::class.simpleName} service" }
+        runCatching { client.close() }
+            .onFailure { LOGGER.error(it) { "Cannot close the HTTP client" } }
+    }
+
+    companion object {
+        private val LOGGER = KotlinLogging.logger { }
+    }
 }

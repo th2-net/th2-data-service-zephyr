@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions
+package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.request
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.fasterxml.jackson.annotation.JsonInclude
 
-fun Project.findVersion(name: String): Version? = versions.find { it.name == name }
-fun Project.findVersion(id: Long): Version? = versions.find { it.id == id }
+@JsonInclude(JsonInclude.Include.NON_NULL)
+class CreateCycle(
+    val projectKey: String,
+    val name: String,
+    val jiraProjectVersion: Long,
+    val folderId: Long?,
+)

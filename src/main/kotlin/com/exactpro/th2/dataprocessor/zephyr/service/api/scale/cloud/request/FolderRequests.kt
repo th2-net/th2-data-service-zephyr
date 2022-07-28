@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions
+package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.request
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
-
-fun Project.findVersion(name: String): Version? = versions.find { it.name == name }
-fun Project.findVersion(id: Long): Version? = versions.find { it.id == id }
+class CreateFolder(
+    val parentId: Long? = null,
+    val name: String,
+    val projectKey: String,
+    val folderType: Type,
+) {
+    enum class Type { TEST_CASE, TEST_PLAN, TEST_CYCLE }
+}

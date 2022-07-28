@@ -134,7 +134,7 @@ class ZephyrEventProcessorImpl(
         executionStatus: BaseExecutionStatus
     ) {
         val project: Project = getProject(issue)
-        val (cycleName: String, version: com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version) = with(versionCycleKey) {
+        val (cycleName: String, version: Version) = with(versionCycleKey) {
             cycle to checkNotNull(project.findVersion(version)) {
                 "Cannot find version $version for project ${project.name}"
             }

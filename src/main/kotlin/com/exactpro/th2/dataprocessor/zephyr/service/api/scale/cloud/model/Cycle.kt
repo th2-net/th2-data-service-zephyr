@@ -14,10 +14,23 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions
+package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
-fun Project.findVersion(name: String): Version? = versions.find { it.name == name }
-fun Project.findVersion(id: Long): Version? = versions.find { it.id == id }
+open class BaseCycle(
+    val id: Long,
+    val key: String,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+class Cycle(
+    id: Long,
+    key: String,
+    val name: String,
+    val jiraProjectVersion: BaseVersion,
+    val folder: BaseFolder?,
+) : BaseCycle(id, key)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class BaseVersion(val id: Long)

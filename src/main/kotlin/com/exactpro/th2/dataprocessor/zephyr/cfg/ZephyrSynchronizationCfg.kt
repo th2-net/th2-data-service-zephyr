@@ -73,7 +73,7 @@ class ConnectionCfg(
 @JsonSubTypes(
     JsonSubTypes.Type(name = "standard", value = BaseAuth::class),
     JsonSubTypes.Type(name = "jwt", value = JwtAuth::class),
-    JsonSubTypes.Type(name = "bearer", value = BaererAuth::class),
+    JsonSubTypes.Type(name = "bearer", value = BearerAuth::class),
 )
 sealed class Credentials
 
@@ -100,7 +100,7 @@ class JwtAuth(
     var accountId: String? = null
 }
 
-class BaererAuth(
+class BearerAuth(
     val token: String,
 ) : Credentials() {
     init {

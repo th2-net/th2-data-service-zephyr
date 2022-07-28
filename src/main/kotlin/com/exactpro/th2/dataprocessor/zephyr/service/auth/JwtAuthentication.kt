@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.service
+package com.exactpro.th2.dataprocessor.zephyr.service.auth
 
 import com.atlassian.jwt.JwtConstants
 import com.atlassian.jwt.SigningAlgorithm

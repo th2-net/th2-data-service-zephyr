@@ -15,13 +15,14 @@ targetCompatibility = JavaVersion.VERSION_11
 compileKotlin {
     kotlinOptions {
         jvmTarget = "11"
-
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 }
 
 compileTestKotlin {
     kotlinOptions {
         jvmTarget = "11"
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 }
 
@@ -57,10 +58,6 @@ dependencies {
     implementation("io.ktor:ktor-client-auth:$ktorVersion")
     implementation("io.ktor:ktor-client-logging:$ktorVersion")
     implementation("io.ktor:ktor-client-jackson:$ktorVersion")
-
-    // Logging. All versions are specified in BOM dependency
-    implementation "org.slf4j:slf4j-log4j12"
-    implementation "org.slf4j:slf4j-api"
 
     // Idiomatic logging for Kotlin. Wraps slf4j
     implementation 'io.github.microutils:kotlin-logging:2.0.4'

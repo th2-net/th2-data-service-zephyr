@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions
+package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.model
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
-
-fun Project.findVersion(name: String): Version? = versions.find { it.name == name }
-fun Project.findVersion(id: Long): Version? = versions.find { it.id == id }
+class Cycle(
+    val name: String,
+    val key: String,
+    val version: String? = null,
+    val folder: String? = null,
+)

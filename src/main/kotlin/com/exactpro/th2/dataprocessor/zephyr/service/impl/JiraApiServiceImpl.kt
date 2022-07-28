@@ -18,8 +18,11 @@ package com.exactpro.th2.dataprocessor.zephyr.service.impl
 
 import com.atlassian.jira.rest.client.api.domain.IssueLinkType
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
+import com.exactpro.th2.dataprocessor.zephyr.cfg.BearerAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
+import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
+import com.exactpro.th2.dataprocessor.zephyr.cfg.JwtAuth
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.Jql
 import com.exactpro.th2.dataprocessor.zephyr.service.api.SearchParameters
@@ -29,16 +32,15 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.model.IssueLink
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.LinkType
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.exactpro.th2.dataprocessor.zephyr.service.auth.AuthenticateWith
 import io.atlassian.util.concurrent.Promise
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
-import io.ktor.client.features.auth.Auth
-import io.ktor.client.features.auth.providers.BasicAuthCredentials
-import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.Json
 import io.ktor.client.features.logging.Logging
 import io.ktor.client.request.get
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
 import io.ktor.http.takeFrom
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -51,21 +53,22 @@ import com.atlassian.jira.rest.client.api.domain.IssueLink as JiraIssueLink
 
 class JiraApiServiceImpl(
     private val uri: String,
-    private val auth: BaseAuth,
+    private val auth: Credentials,
     private val httpLogging: HttpLoggingConfiguration
 ) : JiraApiService {
 
-    private val api = AsynchronousJiraRestClientFactory()
-        .createWithBasicHttpAuthentication(URI.create(uri), auth.username, auth.key)
-    private val httpClient = HttpClient(Java) {
-        Auth {
-            basic {
-                credentials {
-                    BasicAuthCredentials(auth.username, auth.key)
-                }
-                sendWithoutRequest { true }
+    private val api = AsynchronousJiraRestClientFactory().run {
+        val jiraUri = URI.create(uri)
+        when(auth) {
+            is BaseAuth -> createWithBasicHttpAuthentication(jiraUri, auth.username, auth.key)
+            is BearerAuth -> createWithAuthenticationHandler(jiraUri) {
+                it.setHeader(HttpHeaders.Authorization, "Bearer ${auth.token}")
             }
+            is JwtAuth -> error("${auth::class.simpleName} is not supported authentication")
         }
+    }
+    private val httpClient = HttpClient(Java) {
+        AuthenticateWith(auth, uri)
         Json {
             serializer = JacksonSerializer()
         }

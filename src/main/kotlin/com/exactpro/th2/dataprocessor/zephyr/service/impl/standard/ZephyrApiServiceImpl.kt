@@ -213,12 +213,6 @@ class ZephyrApiServiceImpl(
         }.toFolder(folderName)
     }
 
-    override fun close() {
-        LOGGER.info { "Disposing resources for Zephyr service" }
-        runCatching { client.close() }
-            .onFailure { LOGGER.error(it) { "Cannot close the Zephyr HTTP client" } }
-    }
-
     companion object {
         private val LOGGER = KotlinLogging.logger { }
 

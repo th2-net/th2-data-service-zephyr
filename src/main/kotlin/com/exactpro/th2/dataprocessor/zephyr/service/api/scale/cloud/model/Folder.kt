@@ -14,10 +14,19 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions
+package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
-fun Project.findVersion(name: String): Version? = versions.find { it.name == name }
-fun Project.findVersion(id: Long): Version? = versions.find { it.id == id }
+@JsonIgnoreProperties(ignoreUnknown = true)
+open class BaseFolder(
+    val id: Long,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+class Folder(
+    id: Long,
+    val name: String,
+    val parentId: Long? = null,
+    val folderType: String,
+) : BaseFolder(id)
