@@ -24,17 +24,25 @@ import com.exactpro.th2.common.metrics.LIVENESS_MONITOR
 import com.exactpro.th2.common.metrics.READINESS_MONITOR
 import com.exactpro.th2.common.schema.factory.CommonFactory
 import com.exactpro.th2.common.schema.factory.extensions.getCustomConfiguration
+import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
+import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventResponse
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg.Companion.MAPPER
+import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType
 import com.exactpro.th2.dataprocessor.zephyr.cfg.util.validate
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.ZephyrServiceImpl
+import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.ScaleServiceHolder
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.ZephyrScaleEventProcessorImpl
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.JiraApiServiceImpl
 import com.exactpro.th2.dataprocessor.zephyr.impl.standard.RelatedIssuesStrategiesStorageImpl
 import com.exactpro.th2.dataprocessor.zephyr.impl.standard.StandardServiceHolder
-import com.exactpro.th2.dataprocessor.zephyr.service.impl.standard.ZephyrApiServiceImpl
 import com.exactpro.th2.dataprocessor.zephyr.impl.standard.ZephyrEventProcessorImpl
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.server.ZephyrScaleServerApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.standard.ZephyrApiServiceImpl
 import mu.KotlinLogging
 import java.util.Deque
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -98,20 +106,21 @@ fun main(args: Array<String>) {
 
         val dataProvider = factory.grpcRouter.getService(AsyncDataProviderService::class.java)
 
-        val connections: Map<String, StandardServiceHolder> = cfg.connections.associate { connection ->
-            val jiraApi = JiraApiServiceImpl(
-                connection.baseUrl,
-                connection.jira,
-                cfg.httpLogging
-            )
+        fun createSquad(): Pair<Map<String, ServiceHolder<*>>, ZephyrEventProcessor> {
+            val connections: Map<String, StandardServiceHolder> = cfg.createConnections(::StandardServiceHolder, ::ZephyrApiServiceImpl)
+            val processor = ZephyrEventProcessorImpl(cfg.syncParameters, connections, dataProvider, strategiesStorageImpl)
+            return connections to processor
+        }
 
-            val zephyrApi = ZephyrApiServiceImpl(
-                connection.baseUrl,
-                connection.zephyr,
-                cfg.httpLogging
-            )
+        fun createScale(): Pair<Map<String, ServiceHolder<*>>, ZephyrEventProcessor> {
+            val connections: Map<String, ScaleServiceHolder> = cfg.createConnections(::ScaleServiceHolder, ::ZephyrScaleServerApiService)
+            val processor = ZephyrScaleEventProcessorImpl(cfg.syncParameters, connections, dataProvider)
+            return connections to processor
+        }
 
-            connection.name to StandardServiceHolder(jiraApi, zephyrApi)
+        val (connections: Map<String, ServiceHolder<*>>, processor) = when (cfg.zephyrType) {
+            ZephyrType.SQUAD -> createSquad()
+            ZephyrType.SCALE_SERVER -> createScale()
         }
 
         resources += AutoCloseable {
@@ -122,7 +131,6 @@ fun main(args: Array<String>) {
             }
         }
 
-        val processor = ZephyrEventProcessorImpl(cfg.syncParameters, connections, dataProvider, strategiesStorageImpl)
         val onInfo: (Event) -> Unit = { event ->
             runCatching {
                 eventRouter.send(
@@ -177,6 +185,26 @@ fun main(args: Array<String>) {
         exitProcess(1)
     }
 }
+
+private fun <T : AutoCloseable, H : ServiceHolder<T>> ZephyrSynchronizationCfg.createConnections(
+    serviceHolder: (JiraApiService, T) -> H,
+    zephyrSupplier: (baseUrl: String, cred: Credentials, httpCfg: HttpLoggingConfiguration) -> T
+): Map<String, H> =
+    connections.associate { connection ->
+        val jiraApi = JiraApiServiceImpl(
+            connection.baseUrl,
+            connection.jira,
+            httpLogging
+        )
+
+        val zephyrApi = zephyrSupplier(
+            connection.baseUrl,
+            connection.zephyr,
+            httpLogging
+        )
+
+        connection.name to serviceHolder(jiraApi, zephyrApi)
+    }
 
 private fun configureShutdownHook(resources: Deque<AutoCloseable>, lock: ReentrantLock, condition: Condition) {
     Runtime.getRuntime().addShutdownHook(thread(

@@ -18,7 +18,7 @@ package com.exactpro.th2.dataprocessor.zephyr.impl
 
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 
-interface ServiceHolder<ZEPHYR> {
+interface ServiceHolder<out ZEPHYR : AutoCloseable> {
     val jira: JiraApiService
     val zephyr: ZEPHYR
 }

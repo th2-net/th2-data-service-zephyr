@@ -23,12 +23,11 @@ import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.getEventSuspend
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
-import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventResponse
 import mu.KotlinLogging
 
-abstract class AbstractZephyrProcessor<ZEPHYR>(
+abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
     private val configurations: List<EventProcessorCfg>,
     private val connections: Map<String, ServiceHolder<ZEPHYR>>,
     protected val dataProvider: AsyncDataProviderService,
@@ -92,7 +91,7 @@ abstract class AbstractZephyrProcessor<ZEPHYR>(
         return event.status
     }
 
-    protected class EventProcessorContext<ZEPHYR>(
+    protected class EventProcessorContext<out ZEPHYR : AutoCloseable>(
         val services: ServiceHolder<ZEPHYR>,
         val configuration: EventProcessorCfg
     ) {
