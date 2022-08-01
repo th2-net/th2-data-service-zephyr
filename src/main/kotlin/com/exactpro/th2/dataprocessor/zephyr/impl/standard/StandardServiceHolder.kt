@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.impl
+package com.exactpro.th2.dataprocessor.zephyr.impl.standard
 
+import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 
-interface ServiceHolder<ZEPHYR> {
-    val jira: JiraApiService
-    val zephyr: ZEPHYR
-}
+class StandardServiceHolder(
+    override val jira: JiraApiService,
+    override val zephyr: ZephyrApiService
+) : ServiceHolder<ZephyrApiService>

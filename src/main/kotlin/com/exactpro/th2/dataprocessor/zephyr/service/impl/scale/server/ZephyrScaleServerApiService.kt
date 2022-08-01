@@ -37,6 +37,7 @@ import io.ktor.http.contentType
 import mu.KotlinLogging
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.model.Cycle as ServerCycle
 
+
 class ZephyrScaleServerApiService(
     url: String,
     credentials: Credentials,

@@ -31,10 +31,10 @@ import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg.Compan
 import com.exactpro.th2.dataprocessor.zephyr.cfg.util.validate
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.ZephyrServiceImpl
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.JiraApiServiceImpl
-import com.exactpro.th2.dataprocessor.zephyr.impl.RelatedIssuesStrategiesStorageImpl
-import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.RelatedIssuesStrategiesStorageImpl
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.StandardServiceHolder
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.standard.ZephyrApiServiceImpl
-import com.exactpro.th2.dataprocessor.zephyr.impl.ZephyrEventProcessorImpl
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.ZephyrEventProcessorImpl
 import mu.KotlinLogging
 import java.util.Deque
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -98,7 +98,7 @@ fun main(args: Array<String>) {
 
         val dataProvider = factory.grpcRouter.getService(AsyncDataProviderService::class.java)
 
-        val connections: Map<String, ServiceHolder> = cfg.connections.associate { connection ->
+        val connections: Map<String, StandardServiceHolder> = cfg.connections.associate { connection ->
             val jiraApi = JiraApiServiceImpl(
                 connection.baseUrl,
                 connection.jira,
@@ -111,7 +111,7 @@ fun main(args: Array<String>) {
                 cfg.httpLogging
             )
 
-            connection.name to ServiceHolder(jiraApi, zephyrApi)
+            connection.name to StandardServiceHolder(jiraApi, zephyrApi)
         }
 
         resources += AutoCloseable {

@@ -22,4 +22,5 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 class TestCase(
     val id: Long,
     val key: String,
+    val project: SelfRef,
 )

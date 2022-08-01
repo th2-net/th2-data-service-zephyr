@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.impl
+package com.exactpro.th2.dataprocessor.zephyr.impl.standard
 
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprocessor.zephyr.RelatedIssuesStrategiesStorage
-import com.exactpro.th2.dataprocessor.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.getEventSuspend
-import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
@@ -44,20 +43,20 @@ import java.util.EnumMap
 
 class ZephyrEventProcessorImpl(
     private val configurations: List<EventProcessorCfg>,
-    private val connections: Map<String, ServiceHolder>,
-    private val dataProvider: AsyncDataProviderService,
+    private val connections: Map<String, StandardServiceHolder>,
+    dataProvider: AsyncDataProviderService,
     private val strategies: RelatedIssuesStrategiesStorage,
-) : ZephyrEventProcessor {
+) : AbstractZephyrProcessor<ZephyrApiService>(configurations, connections, dataProvider) {
     constructor(
         configuration: EventProcessorCfg,
-        connections: Map<String, ServiceHolder>,
+        connections: Map<String, StandardServiceHolder>,
         dataProvider: AsyncDataProviderService,
         knownStrategies: RelatedIssuesStrategiesStorage,
     ) : this(listOf(configuration), connections, dataProvider, knownStrategies)
 
     private val statusMapping: Map<String, Map<EventStatus, BaseExecutionStatus>> = runBlocking {
         configurations.associate { cfg ->
-            val services: ServiceHolder = requireNotNull(connections[cfg.destination]) { "not connection with name ${cfg.destination}" }
+            val services: StandardServiceHolder = requireNotNull(connections[cfg.destination]) { "not connection with name ${cfg.destination}" }
             LOGGER.info { "Requesting statuses for connection named ${cfg.destination}" }
             val statuses = services.zephyr.getExecutionStatuses().associateBy { it.name }
             val mapping = EnumMap<EventStatus, BaseExecutionStatus>(EventStatus::class.java).apply {
@@ -71,24 +70,13 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    override suspend fun onEvent(event: EventResponse): Boolean {
-        val eventName = event.eventName
-        LOGGER.trace { "Processing event ${event.toJson()}" }
-        val matchesIssue: List<EventProcessorCfg> = matchesIssue(eventName)
-        if (matchesIssue.isEmpty()) {
-            return false
-        }
-
-        LOGGER.trace { "Found ${matchesIssue.size} match(es) to process event ${event.shortString}" }
-        for (processorCfg in matchesIssue) {
-            val connectionName = processorCfg.destination
-            LOGGER.trace { "Gathering status for run based on event ${event.shortString}" }
-            val eventStatus: EventStatus = gatherExecutionStatus(event)
-            val services: ServiceHolder = checkNotNull(connections[connectionName]) { "Cannot find the connected services for name $connectionName" }
-            val executionStatus: BaseExecutionStatus = getExecutionStatusForEvent(connectionName, eventStatus)
-            EventProcessorContext(services, processorCfg).processEvent(eventName, event, executionStatus)
-        }
-        return true
+    override suspend fun EventProcessorContext<ZephyrApiService>.processEvent(
+        eventName: String,
+        event: EventResponse,
+        eventStatus: EventStatus
+    ) {
+        val executionStatus: BaseExecutionStatus = getExecutionStatusForEvent(configuration.destination, eventStatus)
+        processEvent(eventName, event, executionStatus)
     }
 
     private fun getExecutionStatusForEvent(
@@ -100,7 +88,7 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private suspend fun EventProcessorContext.processEvent(eventName: String, event: EventResponse, executionStatus: BaseExecutionStatus) {
+    private suspend fun EventProcessorContext<ZephyrApiService>.processEvent(eventName: String, event: EventResponse, executionStatus: BaseExecutionStatus) {
         LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
         val issue: Issue = getIssue(eventName)
         val rootEvent: EventResponse? = findRootEvent(event)
@@ -126,7 +114,7 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private suspend fun EventProcessorContext.updateOrCreateExecution(
+    private suspend fun EventProcessorContext<ZephyrApiService>.updateOrCreateExecution(
         event: EventResponse,
         issue: Issue,
         versionCycleKey: VersionCycleKey,
@@ -162,18 +150,9 @@ class ZephyrEventProcessorImpl(
         )
     }
 
-    private suspend fun findRootEvent(event: EventResponse): EventResponse? {
-        if (!event.hasParentEventId()) {
-            return null
-        }
-        var curEvent: EventResponse = event
-        while (curEvent.hasParentEventId()) {
-            curEvent = dataProvider.getEventSuspend(curEvent.parentEventId)
-        }
-        return curEvent
-    }
+    private suspend fun findRootEvent(event: EventResponse): EventResponse? = event.findRoot()
 
-    private suspend fun EventProcessorContext.getOrCreateExecution(
+    private suspend fun EventProcessorContext<ZephyrApiService>.getOrCreateExecution(
         project: Project,
         version: Version,
         cycle: Cycle,
@@ -193,43 +172,37 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private suspend fun EventProcessorContext.addTestToFolder(issue: Issue, folder: Folder): ZephyrJob {
+    private suspend fun EventProcessorContext<ZephyrApiService>.addTestToFolder(issue: Issue, folder: Folder): ZephyrJob {
         LOGGER.debug { "Adding the test ${issue.key} to folder ${folder.name}" }
         return zephyr.addTestToFolder(folder, issue)
     }
 
-    private suspend fun EventProcessorContext.addTestToCycle(issue: Issue, cycle: Cycle): ZephyrJob {
+    private suspend fun EventProcessorContext<ZephyrApiService>.addTestToCycle(issue: Issue, cycle: Cycle): ZephyrJob {
         LOGGER.debug { "Adding the test ${issue.key} to cycle ${cycle.name}" }
         return zephyr.addTestToCycle(cycle, issue)
     }
 
-    private suspend fun EventProcessorContext.getProject(issue: Issue): Project {
+    private suspend fun EventProcessorContext<ZephyrApiService>.getProject(issue: Issue): Project {
         return jira.projectByKey(issue.projectKey)
     }
 
-    private suspend fun EventProcessorContext.getOrCreateCycle(cycleName: String, project: Project, version: Version): Cycle {
+    private suspend fun EventProcessorContext<ZephyrApiService>.getOrCreateCycle(cycleName: String, project: Project, version: Version): Cycle {
         return zephyr.getCycle(cycleName, project, version) ?: run {
             LOGGER.debug { "Crating cycle $cycleName for project ${project.name} version ${version.name}" }
             zephyr.createCycle(cycleName, project, version)
         }
     }
 
-    private suspend fun EventProcessorContext.getIssue(eventName: String): Issue {
+    private suspend fun EventProcessorContext<ZephyrApiService>.getIssue(eventName: String): Issue {
         return jira.issueByKey(eventName.toIssueKey())
     }
 
-    @Suppress("RedundantSuspendModifier") // TODO: probably we will need to call the data provider in future
-    private suspend fun gatherExecutionStatus(event: EventResponse): EventStatus {
-        // TODO: check relations by messages
-        return event.status
-    }
-
-    private fun EventProcessorContext.extractVersionCycleKey(
+    private fun EventProcessorContext<ZephyrApiService>.extractVersionCycleKey(
         parent: EventResponse?,
         issue: Issue,
     ): VersionCycleKey {
         return if (parent == null) {
-            getCycleNameAndVersionFromCfg(issue)
+            getCycleNameAndVersionFromCfg(issue.key)
         } else {
             val split = parent.eventName.split(configuration.delimiter)
             check(split.size >= 2) { "The parent event's name ${parent.shortString} has incorrect format" }
@@ -238,35 +211,11 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private fun EventProcessorContext.getCycleNameAndVersionFromCfg(issue: Issue): VersionCycleKey {
-        val key = configuration.defaultCycleAndVersions.asSequence()
-            .find { it.value.contains(issue.key) }
-            ?.key
-        checkNotNull(key) { "Cannot find the version and cycle in the configuration for issue ${issue.key}" }
-        return key
-    }
-
-    private suspend fun EventProcessorContext.getOrCreateFolderIfNeeded(cycle: Cycle, folderName: String): Folder {
+    private suspend fun EventProcessorContext<ZephyrApiService>.getOrCreateFolderIfNeeded(cycle: Cycle, folderName: String): Folder {
         return zephyr.getFolder(cycle, folderName) ?: run {
             LOGGER.debug { "Creating folder $folderName for cycle ${cycle.name}" }
             zephyr.createFolder(cycle, folderName)
         }
-    }
-
-    private fun matchesIssue(eventName: String): List<EventProcessorCfg> {
-        return configurations.filter { it.issueRegexp.matches(eventName) }
-    }
-
-    private fun String.toIssueKey(): String = replace('_', '-')
-
-    private class EventProcessorContext(
-        val services: ServiceHolder,
-        val configuration: EventProcessorCfg
-    ) {
-        val jira: JiraApiService
-            get() = services.jira
-        val zephyr: ZephyrApiService
-            get() = services.zephyr
     }
 
     companion object {

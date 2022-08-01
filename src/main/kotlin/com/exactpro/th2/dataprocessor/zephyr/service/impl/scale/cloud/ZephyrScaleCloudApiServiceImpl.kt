@@ -24,6 +24,7 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.ZephyrScaleApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model.Execution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model.Folder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model.ZephyrProject
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.request.CreateCycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.request.CreateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.request.CreateFolder
@@ -62,7 +63,10 @@ class ZephyrScaleCloudApiServiceImpl(
 
     override suspend fun getTestCase(key: String): TestCase {
         require(key.isNotBlank()) { "key cannot be blank" }
-        return client.get<CloudTestCase>("$baseApiUrl/testcases/$key").toCommonModel()
+        return client.get<CloudTestCase>("$baseApiUrl/testcases/$key").run {
+            val project = client.get<ZephyrProject>(project.self)
+            toCommonModel(project.key)
+        }
     }
 
     suspend fun getFolder(project: Project, parent: Folder?, name: String): Folder? {
@@ -134,7 +138,7 @@ class ZephyrScaleCloudApiServiceImpl(
         }
     }
 
-    suspend fun findExecutions(project: Project, version: Version, cycle: CloudBaseCycle, issue: Issue): List<Execution> {
+    suspend fun findExecutions(project: Project, cycle: CloudBaseCycle, issue: Issue): List<Execution> {
         return executeSearch(
             urlPath = "testexecutions",
             params = mapOf(
@@ -200,4 +204,4 @@ private fun CloudCycle.toCommonModel(): Cycle = Cycle(id, key, name, jiraProject
 
 private fun BaseFolder.toCloud(): CloudBaseFolder = CloudBaseFolder(requireNotNull(id) { "cannot be null" })
 
-private fun CloudTestCase.toCommonModel(): TestCase = TestCase(id, key)
+private fun CloudTestCase.toCommonModel(projectKey: String): TestCase = TestCase(id, key, projectKey)

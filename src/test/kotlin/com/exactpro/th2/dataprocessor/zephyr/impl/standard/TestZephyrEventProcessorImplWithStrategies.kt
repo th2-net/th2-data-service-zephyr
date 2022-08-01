@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.impl
+package com.exactpro.th2.dataprocessor.zephyr.impl.standard
 
 import com.exactpro.th2.common.event.EventUtils.toEventID
 import com.exactpro.th2.common.grpc.EventID
@@ -95,7 +95,7 @@ class TestZephyrEventProcessorImplWithStrategies {
             ),
             relatedIssuesStrategies = listOf(strategyConfig)
         ),
-        mapOf(ConnectionCfg.DEFAULT_NAME to ServiceHolder(jira, zephyr)), dataProvider, strategiesStorage
+        mapOf(ConnectionCfg.DEFAULT_NAME to StandardServiceHolder(jira, zephyr)), dataProvider, strategiesStorage
     )
 
     @Test

@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.impl
+package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model
 
-import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
-
-interface ServiceHolder<ZEPHYR> {
-    val jira: JiraApiService
-    val zephyr: ZEPHYR
-}
+class SelfRef(
+    val id: Long,
+    /**
+     * URL to access the value
+     */
+    val self: String,
+)

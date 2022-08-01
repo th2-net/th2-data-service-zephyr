@@ -14,43 +14,13 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model
+package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-class TestCase(
-    val id: Long? = null,
-    val key: String,
-    val projectKey: String,
-)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-open class BaseExecutionStatus(
+class ZephyrProject(
     val id: Long,
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-class ExecutionStatus(
-    id: Long,
-    val name: String,
-) : BaseExecutionStatus(id) {
-    override fun toString(): String = name
-}
-
-open class BaseCycle(
-    val id: Long?,
     val key: String,
-)
-
-class Cycle(
-    id: Long?,
-    key: String,
-    val name: String,
-    val version: String,
-) : BaseCycle(id, key)
-
-class BaseFolder(
-    val id: Long?,
-    val name: String?,
 )
