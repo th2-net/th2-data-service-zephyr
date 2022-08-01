@@ -1,7 +1,7 @@
-# Zephyr data processor (0.1.0)
+# Zephyr data processor (0.2.0)
 
-Zephyr data processor synchronizes the test in th2 with Zephyr test.
-It searches for events that match format in the configuration and updates (or create new) executions.
+Zephyr data processor synchronizes the test in th2 with Zephyr Squad and Zephyr Scale.
+It searches for events that match format in the configuration and updates test executions.
 
 
 ## Event tree
@@ -9,10 +9,21 @@ It searches for events that match format in the configuration and updates (or cr
 When the data processor finds the event it tries to extract information about folder, version and cycle.
 It checks the event tree. It should have the following format
 
+### Zephyr Squad
+
 ```
 Root event with name `version|CycleName|Any other information you want`
 |- Sub event with folder name. _NOTE: if there are several sub events the closest one to the issue event will be taken_
    |- TEST-1253  // the issue event. Its name must match the format in the configuration
+```
+
+### Zephyr Scale
+
+```
+Root event
+|- Sub event(s)
+  |- Event with cycle name and version `<CycleName>|<version>|<Any other information>
+    |- TEST-T1253  // the test case event. Its name must match the format in the configuration
 ```
 
 ## Configuration
@@ -26,7 +37,7 @@ metadata:
   name: zephyr-processor
 spec:
   image-name: ghcr.io/th2-net/th2-data-processor-zephyr
-  image-version: 0.1.0
+  image-version: 0.2.0
   type: th2-act
   pins:
     - name: server
@@ -34,6 +45,7 @@ spec:
     - name: to_data_provider
       connection-type: grpc
   custom-config:
+    zephyrType: SQUAD
     connection:
       baseUrl: "https://your.jira.address.com"
       jira:
@@ -86,14 +98,35 @@ spec:
 
 ### Parameters description
 
+#### zephyrType
+
+Determinate which type of synchronization to use. Possible values:
++ SQUAD
++ SCALE_SERVER
+
+The default value is `SQUAD`
+
 #### connection
 
 Contains information about the endpoint ot connect
 
 + baseUrl - url to the Jira instance
-+ jira - block contains credentials to connect to Jira
++ jira - block contains credentials to connect to Jira. There are several types of credentials:
+  + basic - username and password
     + username - the Jira username
     + key - the Jira password or API key for authentication
+    ```yaml
+      jira:
+        username: "jira-user"
+        key: "you password" # or api key
+    ```
+  + bearer - generated token
+    + token - the generated token to access jira
+    ```yaml
+      jira:
+        token: "some generated token"
+    ```
++ zephyr - block contains credentials to connect to Zephyr. By default, the same credentials as for Jira are used.
 
 #### dataService
 
@@ -113,7 +146,7 @@ Contains parameters for synchronization with Zephyr
 + **relatedIssuesStrategies** - configures the strategies to find the additional issues related to the currently processing one.
   They will be updated using the version, cycle and folder for the current issue.
   
-##### Strategies
+##### Strategies (only for Zephyr Squad)
 
 All strategies should be configured in the following way:
 ```yaml
