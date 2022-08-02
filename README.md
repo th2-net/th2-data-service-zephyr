@@ -124,6 +124,7 @@ Contains information about the endpoint ot connect
     + token - the generated token to access jira
     ```yaml
       jira:
+        type: bearer
         token: "some generated token"
     ```
 + zephyr - block contains credentials to connect to Zephyr. By default, the same credentials as for Jira are used.
