@@ -24,7 +24,7 @@ import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.getEventSuspend
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 import mu.KotlinLogging
 
 abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
@@ -32,7 +32,7 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
     private val connections: Map<String, ServiceHolder<ZEPHYR>>,
     protected val dataProvider: AsyncDataProviderService,
 ) : ZephyrEventProcessor {
-    override suspend fun onEvent(event: EventResponse): Boolean {
+    override suspend fun onEvent(event: EventData): Boolean {
         val eventName = event.eventName
         LOGGER.trace { "Processing event ${event.toJson()}" }
         val matchesIssue: List<EventProcessorCfg> = matchesIssue(eventName)
@@ -51,13 +51,13 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
         return true
     }
 
-    protected abstract suspend fun EventProcessorContext<ZEPHYR>.processEvent(eventName: String, event: EventResponse, eventStatus: EventStatus)
+    protected abstract suspend fun EventProcessorContext<ZEPHYR>.processEvent(eventName: String, event: EventData, eventStatus: EventStatus)
 
-    protected suspend fun EventResponse.findParent(match: (EventResponse) -> Boolean): EventResponse? {
+    protected suspend fun EventData.findParent(match: (EventData) -> Boolean): EventData? {
         if (!hasParentEventId()) {
             return null
         }
-        var curEvent: EventResponse = this
+        var curEvent: EventData = this
         while (curEvent.hasParentEventId()) {
             curEvent = dataProvider.getEventSuspend(curEvent.parentEventId)
             if (match(curEvent)) {
@@ -67,7 +67,7 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
         return null
     }
 
-    protected suspend fun EventResponse.findRoot(): EventResponse? = findParent { !it.hasParentEventId() }
+    protected suspend fun EventData.findRoot(): EventData? = findParent { !it.hasParentEventId() }
 
     protected fun matchesIssue(eventName: String): List<EventProcessorCfg> {
         return configurations.filter { it.issueRegexp.matches(eventName) }
@@ -83,12 +83,12 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
 
     protected fun String.toIssueKey(): String = replace('_', '-')
 
-    protected val EventResponse.shortString: String
+    protected val EventData.shortString: String
         get() = "id: ${eventId.toJson()}; name: $eventName"
 
-    protected open suspend fun gatherExecutionStatus(event: EventResponse): EventStatus {
+    protected open suspend fun gatherExecutionStatus(event: EventData): EventStatus {
         // TODO: check relations by messages
-        return event.status
+        return event.successful
     }
 
     protected class EventProcessorContext<out ZEPHYR : AutoCloseable>(

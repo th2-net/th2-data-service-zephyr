@@ -16,8 +16,8 @@
 
 package com.exactpro.th2.dataprocessor.zephyr
 
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 
 interface ZephyrEventProcessor {
-    suspend fun onEvent(event: EventResponse): Boolean
+    suspend fun onEvent(event: EventData): Boolean
 }

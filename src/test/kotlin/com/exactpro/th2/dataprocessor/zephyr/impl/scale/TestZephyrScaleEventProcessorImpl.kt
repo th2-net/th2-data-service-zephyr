@@ -30,7 +30,7 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.doAnswer
@@ -91,30 +91,30 @@ internal class TestZephyrScaleEventProcessorImpl {
     @EnumSource(value = EventStatus::class, names = ["UNRECOGNIZED"], mode = EnumSource.Mode.EXCLUDE)
     fun `creates all required structure for event`(testCaseStatus: EventStatus) {
         TestCoroutineScope().runBlockingTest {
-            val root = EventResponse.newBuilder()
+            val root = EventData.newBuilder()
                 .setEventId(EventUtils.toEventID("1"))
                 .setEventName("Root")
                 .build()
-            val cycleEvent = EventResponse.newBuilder()
+            val cycleEvent = EventData.newBuilder()
                 .setEventId(EventUtils.toEventID("2"))
                 .setParentEventId(root.eventId)
                 .setEventName("TestCycle | 1.0.0 |${Instant.now()}")
                 .build()
-            val intermediateEvent = EventResponse.newBuilder()
+            val intermediateEvent = EventData.newBuilder()
                 .setEventId(EventUtils.toEventID("3"))
                 .setParentEventId(cycleEvent.eventId)
                 .setEventName("SomeEvent")
                 .build()
-            val testCase = EventResponse.newBuilder()
+            val testCase = EventData.newBuilder()
                 .setEventId(EventUtils.toEventID("4"))
                 .setParentEventId(intermediateEvent.eventId)
                 .setEventName("TEST_T1234")
-                .setStatus(testCaseStatus)
+                .setSuccessful(testCaseStatus)
                 .build()
             val eventsById = arrayOf(root, cycleEvent, intermediateEvent, testCase).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
                 val id: EventID = it.getArgument(0)
-                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                val observer: StreamObserver<EventData> = it.getArgument(1)
                 eventsById[id]?.let { event ->
                     observer.onNext(event)
                     observer.onCompleted()

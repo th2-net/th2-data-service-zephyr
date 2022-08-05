@@ -20,7 +20,7 @@ import com.exactpro.th2.common.event.EventUtils.toEventID
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ConnectionCfg
@@ -87,30 +87,30 @@ class TestZephyrEventProcessorImpl {
     @EnumSource(value = EventStatus::class, names = ["UNRECOGNIZED"], mode = EnumSource.Mode.EXCLUDE)
     fun `creates all required structure for event`(issueStatus: EventStatus) {
         TestCoroutineScope().runBlockingTest {
-            val root = EventResponse.newBuilder()
+            val root = EventData.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
                 .build()
-            val anotherLevel = EventResponse.newBuilder()
+            val anotherLevel = EventData.newBuilder()
                 .setEventId(toEventID("2"))
                 .setParentEventId(root.eventId)
                 .setEventName("Level")
                 .build()
-            val folderEvent = EventResponse.newBuilder()
+            val folderEvent = EventData.newBuilder()
                 .setEventId(toEventID("3"))
                 .setParentEventId(anotherLevel.eventId)
                 .setEventName("TestFolder")
                 .build()
-            val issue = EventResponse.newBuilder()
+            val issue = EventData.newBuilder()
                 .setEventId(toEventID("4"))
                 .setParentEventId(folderEvent.eventId)
                 .setEventName("TEST_1234")
-                .setStatus(issueStatus)
+                .setSuccessful(issueStatus)
                 .build()
             val eventsById = arrayOf(root, anotherLevel, folderEvent, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
                 val id: EventID = it.getArgument(0)
-                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                val observer: StreamObserver<EventData> = it.getArgument(1)
                 eventsById[id]?.let { event ->
                     observer.onNext(event)
                     observer.onCompleted()
@@ -156,16 +156,16 @@ class TestZephyrEventProcessorImpl {
     @Test
     fun `does not create all structure again`() {
         TestCoroutineScope().runBlockingTest {
-            val root = EventResponse.newBuilder()
+            val root = EventData.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
                 .build()
-            val folderEvent = EventResponse.newBuilder()
+            val folderEvent = EventData.newBuilder()
                 .setEventId(toEventID("2"))
                 .setParentEventId(root.eventId)
                 .setEventName("TestFolder")
                 .build()
-            val issue = EventResponse.newBuilder()
+            val issue = EventData.newBuilder()
                 .setEventId(toEventID("3"))
                 .setParentEventId(folderEvent.eventId)
                 .setEventName("TEST_1234")
@@ -173,7 +173,7 @@ class TestZephyrEventProcessorImpl {
             val eventsById = arrayOf(root, folderEvent, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
                 val id: EventID = it.getArgument(0)
-                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                val observer: StreamObserver<EventData> = it.getArgument(1)
                 eventsById[id]?.let { event ->
                     observer.onNext(event)
                     observer.onCompleted()
@@ -211,11 +211,11 @@ class TestZephyrEventProcessorImpl {
     @Test
     fun `adds test to cycle if not folder found`() {
         TestCoroutineScope().runBlockingTest {
-            val root = EventResponse.newBuilder()
+            val root = EventData.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
                 .build()
-            val issue = EventResponse.newBuilder()
+            val issue = EventData.newBuilder()
                 .setEventId(toEventID("3"))
                 .setParentEventId(root.eventId)
                 .setEventName("TEST_1234")
@@ -223,7 +223,7 @@ class TestZephyrEventProcessorImpl {
             val eventsById = arrayOf(root, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
                 val id: EventID = it.getArgument(0)
-                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                val observer: StreamObserver<EventData> = it.getArgument(1)
                 eventsById[id]?.let { event ->
                     observer.onNext(event)
                     observer.onCompleted()

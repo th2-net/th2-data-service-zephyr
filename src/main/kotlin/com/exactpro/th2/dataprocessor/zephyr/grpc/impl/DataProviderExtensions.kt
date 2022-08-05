@@ -19,7 +19,7 @@ package com.exactpro.th2.dataprocessor.zephyr.grpc.impl
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 import io.grpc.stub.StreamObserver
 import mu.KotlinLogging
 import kotlin.coroutines.Continuation
@@ -27,7 +27,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-suspend fun AsyncDataProviderService.getEventSuspend(eventId: EventID): EventResponse {
+suspend fun AsyncDataProviderService.getEventSuspend(eventId: EventID): EventData {
     return suspendCoroutine {
         getEvent(eventId, CoroutineSingleStreamObserver(it) { data -> data.eventId.toJson() })
     }

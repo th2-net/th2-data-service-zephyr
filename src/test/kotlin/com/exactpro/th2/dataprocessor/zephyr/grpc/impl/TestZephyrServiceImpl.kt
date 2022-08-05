@@ -42,7 +42,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Test
-import com.exactpro.th2.dataprovider.grpc.EventResponse as ProviderEventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData as ProviderEventResponse
 
 @ExperimentalCoroutinesApi
 class TestZephyrServiceImpl {

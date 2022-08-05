@@ -34,7 +34,7 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategy
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyConfiguration
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.eq
@@ -101,16 +101,16 @@ class TestZephyrEventProcessorImplWithStrategies {
     @Test
     fun `adds executions for related issues`() {
         TestCoroutineScope().runBlockingTest {
-            val root = EventResponse.newBuilder()
+            val root = EventData.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
                 .build()
-            val folderEvent = EventResponse.newBuilder()
+            val folderEvent = EventData.newBuilder()
                 .setEventId(toEventID("2"))
                 .setParentEventId(root.eventId)
                 .setEventName("TestFolder")
                 .build()
-            val issue = EventResponse.newBuilder()
+            val issue = EventData.newBuilder()
                 .setEventId(toEventID("3"))
                 .setParentEventId(folderEvent.eventId)
                 .setEventName("TEST_1234")
@@ -118,7 +118,7 @@ class TestZephyrEventProcessorImplWithStrategies {
             val eventsById = arrayOf(root, folderEvent, issue).associateBy { it.eventId }
             whenever(dataProvider.getEvent(any(), any())).then {
                 val id: EventID = it.getArgument(0)
-                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                val observer: StreamObserver<EventData> = it.getArgument(1)
                 eventsById[id]?.let { event ->
                     observer.onNext(event)
                     observer.onCompleted()

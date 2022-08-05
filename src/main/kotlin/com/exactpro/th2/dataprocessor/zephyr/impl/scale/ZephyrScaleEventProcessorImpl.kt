@@ -27,7 +27,7 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 import mu.KotlinLogging
 
 class ZephyrScaleEventProcessorImpl(
@@ -45,7 +45,7 @@ class ZephyrScaleEventProcessorImpl(
 
     override suspend fun EventProcessorContext<ZephyrScaleApiService>.processEvent(
         eventName: String,
-        event: EventResponse,
+        event: EventData,
         eventStatus: EventStatus
     ) {
         val testCaseKey = eventName.toIssueKey()
@@ -73,7 +73,7 @@ class ZephyrScaleEventProcessorImpl(
         cycle: Cycle,
         testCase: TestCase,
         executionStatus: ExecutionStatus,
-        event: EventResponse
+        event: EventData
     ) {
         zephyr.createExecution(
             project, version, cycle, testCase, executionStatus,
@@ -96,7 +96,7 @@ class ZephyrScaleEventProcessorImpl(
         ?: error("cannot find specified version $versionName for project $project. Known versions: ${project.versions}")
 
     private suspend fun EventProcessorContext<ZephyrScaleApiService>.extractCycleAndVersionOrCfgValues(
-        event: EventResponse,
+        event: EventData,
         cycleRegex: Regex,
         testCase: TestCase
     ): Pair<String, String> = event.findParent { cycleRegex.matches(it.eventName) }

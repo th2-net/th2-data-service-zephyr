@@ -27,7 +27,7 @@ import com.exactpro.th2.common.schema.factory.extensions.getCustomConfiguration
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg.Companion.MAPPER
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType
@@ -141,7 +141,7 @@ fun main(args: Array<String>) {
             }.onFailure { LOGGER.error(it) { "Cannot send event ${event.id}" } }
         }
 
-        val onError: (EventResponse?, Throwable) -> Unit = { event, t ->
+        val onError: (EventData?, Throwable) -> Unit = { event, t ->
             runCatching {
                 eventRouter.send(
                     EventBatch.newBuilder()
