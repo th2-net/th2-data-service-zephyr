@@ -67,7 +67,7 @@ class ZephyrScaleServerApiService(
                     return it.toCommonModel()
                 }
             }
-            currentIndex = (currentIndex ?: 0) + cycles.size - 1
+            currentIndex = (currentIndex ?: -1) + cycles.size
         } while (cycles.isNotEmpty())
         return null
     }
