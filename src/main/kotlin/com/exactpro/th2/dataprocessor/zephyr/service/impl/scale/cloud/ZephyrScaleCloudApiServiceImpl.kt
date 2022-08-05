@@ -124,7 +124,15 @@ class ZephyrScaleCloudApiServiceImpl(
         }.toCommonModule()
     }
 
-    override suspend fun createExecution(project: Project, version: Version, cycle: BaseCycle, testCase: TestCase, status: ExecutionStatus, comment: String?) {
+    override suspend fun updateExecution(
+        project: Project,
+        version: Version,
+        cycle: BaseCycle,
+        testCase: TestCase,
+        status: ExecutionStatus,
+        comment: String?,
+        executedBy: String?
+    ) {
         return client.post("$baseApiUrl/testexecutions") {
             contentType(ContentType.Application.Json)
             body = CreateExecution(

@@ -16,12 +16,10 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.server
 
-import com.exactpro.th2.dataprocessor.zephyr.cfg.BearerAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
-import com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions.findVersion
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.ZephyrScaleApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.BaseCycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.BaseFolder
@@ -31,14 +29,11 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.CreateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionCreatedResponse
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
-import com.exactpro.th2.dataprocessor.zephyr.service.impl.JiraApiServiceImpl
-import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
-import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.model.Cycle as ServerCycle
 
@@ -79,21 +74,23 @@ class ZephyrScaleServerApiService(
         }.toCommonModel()
     }
 
-    override suspend fun createExecution(
+    override suspend fun updateExecution(
         project: Project,
         version: Version,
         cycle: BaseCycle,
         testCase: TestCase,
         status: ExecutionStatus,
-        comment: String?
+        comment: String?,
+        executedBy: String?
     ) {
         LOGGER.trace { "Creating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
-        val result = client.post<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
+        val result = client.put<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
             contentType(ContentType.Application.Json)
             body = CreateExecution(
                 status = status.name,
                 version = version.name,
                 comment = comment,
+                executedBy = executedBy,
             )
         }
         LOGGER.trace { "Execution id: ${result.id}" }
