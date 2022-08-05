@@ -22,6 +22,7 @@ import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ConnectionCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
@@ -34,6 +35,7 @@ import com.exactpro.th2.dataprovider.grpc.EventResponse
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.doAnswer
+import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.eq
 import com.nhaarman.mockitokotlin2.inOrder
 import com.nhaarman.mockitokotlin2.isNull
@@ -66,6 +68,7 @@ internal class TestZephyrScaleEventProcessorImpl {
             Issue(1, key, "TEST")
         }
         onBlocking { projectByKey(eq("TEST")) }.thenReturn(project)
+        onBlocking { accountInfo() } doReturn AccountInfo("test", "test_key")
     }
     private val zephyr = mock<ZephyrScaleApiService> {
         onBlocking { getExecutionsStatuses(eq(project)) }.thenReturn(listOf(ExecutionStatus(1, "PASS"), ExecutionStatus(2, "WIP")))
@@ -137,13 +140,14 @@ internal class TestZephyrScaleEventProcessorImpl {
                     isNull(),
                     eq("TestCycle"),
                 )
-                verify(zephyr).createExecution(
+                verify(zephyr).updateExecution(
                     same(project),
                     same(version),
                     same(cycle),
                     argThat { key == "TEST-T1234" },
                     argThat { name == statusMapping[testCaseStatus] },
                     argThat { contains(testCase.eventId.id) },
+                    eq("test")
                 )
                 verifyNoMoreInteractions()
             }
