@@ -62,9 +62,9 @@ class ZephyrScaleServerApiService(
         var currentIndex: Int? = null
         do {
             val cycles = searchCycles(maxResults, currentIndex, project)
-            cycles.forEach {
-                if (it.name == name && it.folder == folder?.name) {
-                    return it.toCommonModel()
+            cycles.forEach { cycle ->
+                if (cycle.name == name && folder?.let { it.name == cycle.folder } != false) {
+                    return cycle.toCommonModel()
                 }
             }
             currentIndex = (currentIndex ?: -1) + cycles.size
