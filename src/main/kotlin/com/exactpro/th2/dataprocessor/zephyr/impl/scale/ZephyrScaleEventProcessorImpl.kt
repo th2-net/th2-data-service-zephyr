@@ -86,7 +86,7 @@ class ZephyrScaleEventProcessorImpl(
         zephyr.updateExecution(
             project, version, cycle, testCase, executionStatus,
             comment = "Updated by th2 because of event with id: ${event.eventId.id}",
-            executedBy = accountInfoByConnection[configuration.destination]?.name,
+            executedBy = accountInfoByConnection[configuration.destination]?.key,
         )
     }
 

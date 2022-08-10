@@ -68,7 +68,7 @@ internal class TestZephyrScaleEventProcessorImpl {
             Issue(1, key, "TEST")
         }
         onBlocking { projectByKey(eq("TEST")) }.thenReturn(project)
-        onBlocking { accountInfo() } doReturn AccountInfo("test", "test_key")
+        onBlocking { accountInfo() } doReturn AccountInfo("test", "test_key", "test display")
     }
     private val zephyr = mock<ZephyrScaleApiService> {
         onBlocking { getExecutionsStatuses(eq(project)) }.thenReturn(listOf(ExecutionStatus(1, "PASS"), ExecutionStatus(2, "WIP")))
@@ -147,7 +147,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { key == "TEST-T1234" },
                     argThat { name == statusMapping[testCaseStatus] },
                     argThat { contains(testCase.eventId.id) },
-                    eq("test")
+                    eq("test_key")
                 )
                 verifyNoMoreInteractions()
             }

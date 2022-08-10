@@ -22,4 +22,5 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 class AccountInfo(
     val name: String,
     val key: String,
+    val displayName: String,
 )
