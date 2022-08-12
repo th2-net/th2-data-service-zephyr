@@ -27,8 +27,9 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionCreatedResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionPreservedFields
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.UpdateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
-import com.fasterxml.jackson.databind.node.ObjectNode
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.put
@@ -75,8 +76,8 @@ class ZephyrScaleServerApiService(
     }
 
     private suspend fun getLastExecution(testRunKey: String) = client
-        .get<List<ObjectNode>>("$baseApiUrl/testrun/$testRunKey/testresults")
-        .maxByOrNull { it["id"].intValue() }
+        .get<List<ExecutionPreservedFields>>("$baseApiUrl/testrun/$testRunKey/testresults")
+        .maxByOrNull { it.id }
         ?: throw NoSuchElementException("Test Results for Test Run ($testRunKey) not found.")
 
     override suspend fun updateExecution(
@@ -90,22 +91,20 @@ class ZephyrScaleServerApiService(
     ) {
         LOGGER.trace { "Updating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
 
-        val lastExecution = getLastExecution(cycle.key).apply {
-            fun updateField(fieldName: String, value: String?) {
-                if (value == null) remove(fieldName) else put(fieldName, value)
-            }
-
-            remove(listOf("scriptResults", "automated", "id", "projectId", "key", "actualStartDate", "actualEndDate"))
-            put("status", status.name)
-            put("version", version.name,)
-            updateField("comment", comment)
-            updateField("executedBy", executedBy)
-        }
+        val lastExecution = getLastExecution(cycle.key)
 
         val result = client.put<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
             contentType(ContentType.Application.Json)
-            body = lastExecution
+            body = UpdateExecution(
+                status = status.name,
+                version = version.name,
+                comment = comment,
+                executedBy = executedBy ?: lastExecution.executedBy,
+                assignedTo = lastExecution.assignedTo,
+                environment = lastExecution.environment
+            )
         }
+
         LOGGER.trace { "Execution id: ${result.id}" }
     }
 
