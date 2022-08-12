@@ -99,7 +99,7 @@ class ZephyrScaleServerApiService(
                 status = status.name,
                 version = version.name,
                 comment = comment,
-                executedBy = executedBy ?: lastExecution.executedBy,
+                executedBy = executedBy,
                 assignedTo = lastExecution.assignedTo,
                 environment = lastExecution.environment
             )

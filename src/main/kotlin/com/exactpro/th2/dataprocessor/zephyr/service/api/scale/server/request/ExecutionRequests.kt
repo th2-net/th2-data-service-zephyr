@@ -36,7 +36,6 @@ class ExecutionCreatedResponse(
 @JsonIgnoreProperties(ignoreUnknown = true)
 class ExecutionPreservedFields(
     val id: Int,
-    val executedBy: String?,
     val assignedTo: String?,
     val environment: String?
 )
