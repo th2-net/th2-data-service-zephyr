@@ -95,7 +95,7 @@ class ZephyrScaleServerApiService(
                 if (value == null) remove(fieldName) else put(fieldName, value)
             }
 
-            remove(listOf("actualStartDate", "actualEndDate"))
+            remove(listOf("scriptResults", "automated", "id", "projectId", "key", "actualStartDate", "actualEndDate"))
             put("status", status.name)
             put("version", version.name,)
             updateField("comment", comment)
