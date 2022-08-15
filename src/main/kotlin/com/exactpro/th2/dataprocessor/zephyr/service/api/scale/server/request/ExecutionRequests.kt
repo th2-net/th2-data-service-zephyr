@@ -16,16 +16,26 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-class CreateExecution(
+class UpdateExecution(
     val status: String,
     val version: String,
     val comment: String?,
     val executedBy: String?,
+    val assignedTo: String?,
+    val environment: String?,
 )
 
 class ExecutionCreatedResponse(
     val id: Long,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+class ExecutionPreservedFields(
+    val id: Int,
+    val assignedTo: String?,
+    val environment: String?
 )

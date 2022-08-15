@@ -26,8 +26,9 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.BaseFolder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
-import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.CreateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionCreatedResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionPreservedFields
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.UpdateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -74,6 +75,11 @@ class ZephyrScaleServerApiService(
         }.toCommonModel()
     }
 
+    private suspend fun getLastExecution(testRunKey: String) = client
+        .get<List<ExecutionPreservedFields>>("$baseApiUrl/testrun/$testRunKey/testresults")
+        .maxByOrNull { it.id }
+        ?: throw NoSuchElementException("Test Results for Test Run ($testRunKey) not found.")
+
     override suspend fun updateExecution(
         project: Project,
         version: Version,
@@ -83,16 +89,22 @@ class ZephyrScaleServerApiService(
         comment: String?,
         executedBy: String?
     ) {
-        LOGGER.trace { "Creating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
+        LOGGER.trace { "Updating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
+
+        val lastExecution = getLastExecution(cycle.key)
+
         val result = client.put<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
             contentType(ContentType.Application.Json)
-            body = CreateExecution(
+            body = UpdateExecution(
                 status = status.name,
                 version = version.name,
                 comment = comment,
                 executedBy = executedBy,
+                assignedTo = lastExecution.assignedTo,
+                environment = lastExecution.environment
             )
         }
+
         LOGGER.trace { "Execution id: ${result.id}" }
     }
 
