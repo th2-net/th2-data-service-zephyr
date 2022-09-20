@@ -59,7 +59,7 @@ class ZephyrScaleServerApiService(
         do {
             val cycles = searchCycles(maxResults, currentIndex, project)
             cycles.forEach { cycle ->
-                if (cycle.name == name && folder?.let { it.name == cycle.folder } != false) {
+                if (cycle.name == name && cycle.version == version.name && folder?.let { it.name == cycle.folder } != false) {
                     return cycle.toCommonModel()
                 }
             }
