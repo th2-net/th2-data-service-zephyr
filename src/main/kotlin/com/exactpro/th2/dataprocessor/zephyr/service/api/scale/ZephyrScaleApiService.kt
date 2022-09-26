@@ -42,4 +42,14 @@ interface ZephyrScaleApiService : AutoCloseable {
         comment: String? = null,
         executedBy: String? = null,
     )
+
+    suspend fun createExecution(
+        project: Project,
+        version: Version,
+        cycle: BaseCycle,
+        testCase: TestCase,
+        status: ExecutionStatus,
+        comment: String? = null,
+        executedBy: String? = null,
+    )
 }

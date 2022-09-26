@@ -63,6 +63,12 @@ class EventProcessorCfg(
      * The list of strategies to find the related issues
      */
     val relatedIssuesStrategies: List<RelatedIssuesStrategyConfiguration> = emptyList(),
+
+    /**
+     * Defines how the processor should interact with execution. By default, it tries to update the last one (if it is possible).
+     * You can change the mode to [TestExecutionMode.CREATE_NEW] to change the behavior (if it is supported by zephyr)
+     */
+    val testExecutionMode: TestExecutionMode = TestExecutionMode.UPDATE_LAST,
 ) {
     val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {
@@ -70,4 +76,8 @@ class EventProcessorCfg(
         require(statusMapping.containsKey(FAILED)) { "mapping for $FAILED status must be set" }
         require(statusMapping.containsKey(SUCCESS)) { "mapping for $SUCCESS status must be set" }
     }
+}
+
+enum class TestExecutionMode {
+    UPDATE_LAST, CREATE_NEW
 }

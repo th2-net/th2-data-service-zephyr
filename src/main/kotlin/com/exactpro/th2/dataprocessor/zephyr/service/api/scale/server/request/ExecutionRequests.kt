@@ -29,6 +29,14 @@ class UpdateExecution(
     val environment: String?,
 )
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
+class CreateExecution(
+    val status: String,
+    val version: String,
+    val comment: String?,
+    val executedBy: String?,
+)
+
 class ExecutionCreatedResponse(
     val id: Long,
 )

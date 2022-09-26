@@ -26,12 +26,14 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.BaseFolder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.CreateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionCreatedResponse
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionPreservedFields
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.UpdateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -75,7 +77,7 @@ class ZephyrScaleServerApiService(
         }.toCommonModel()
     }
 
-    private suspend fun getLastExecution(testRunKey: String) = client
+    private suspend fun getLastExecution(testRunKey: String): ExecutionPreservedFields = client
         .get<List<ExecutionPreservedFields>>("$baseApiUrl/testrun/$testRunKey/testresults")
         .maxByOrNull { it.id }
         ?: throw NoSuchElementException("Test Results for Test Run ($testRunKey) not found.")
@@ -105,6 +107,28 @@ class ZephyrScaleServerApiService(
             )
         }
 
+        LOGGER.trace { "Execution id: ${result.id}" }
+    }
+
+    override suspend fun createExecution(
+        project: Project,
+        version: Version,
+        cycle: BaseCycle,
+        testCase: TestCase,
+        status: ExecutionStatus,
+        comment: String?,
+        executedBy: String?
+    ) {
+        LOGGER.trace { "Creating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
+        val result = client.post<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
+            contentType(ContentType.Application.Json)
+            body = CreateExecution(
+                status = status.name,
+                version = version.name,
+                comment = comment,
+                executedBy = executedBy,
+            )
+        }
         LOGGER.trace { "Execution id: ${result.id}" }
     }
 

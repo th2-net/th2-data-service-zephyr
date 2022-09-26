@@ -18,12 +18,14 @@ package com.exactpro.th2.dataprocessor.zephyr.impl.scale
 
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
+import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions.findVersion
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.ZephyrScaleApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.BaseCycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
@@ -83,10 +85,17 @@ class ZephyrScaleEventProcessorImpl(
         executionStatus: ExecutionStatus,
         event: EventResponse
     ) {
-        zephyr.updateExecution(
+        val action: suspend (
+            ZephyrScaleApiService,
+            Project, Version, BaseCycle, TestCase, ExecutionStatus, comment: String?, executedBy: String?
+        ) -> Unit = when (configuration.testExecutionMode) {
+            TestExecutionMode.UPDATE_LAST -> ZephyrScaleApiService::updateExecution
+            TestExecutionMode.CREATE_NEW -> ZephyrScaleApiService::createExecution
+        }
+        action(zephyr,
             project, version, cycle, testCase, executionStatus,
-            comment = "Updated by th2 because of event with id: ${event.eventId.id}",
-            executedBy = accountInfoByConnection[configuration.destination]?.key,
+            "Updated by th2 because of event with id: ${event.eventId.id}",
+            accountInfoByConnection[configuration.destination]?.key,
         )
     }
 
