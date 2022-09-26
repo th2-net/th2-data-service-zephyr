@@ -146,6 +146,18 @@ class ZephyrScaleCloudApiServiceImpl(
         }
     }
 
+    override suspend fun createExecution(
+        project: Project,
+        version: Version,
+        cycle: BaseCycle,
+        testCase: TestCase,
+        status: ExecutionStatus,
+        comment: String?,
+        executedBy: String?
+    ) {
+        throw UnsupportedOperationException("the method is not implemented for cloud api. Please, contact the developers")
+    }
+
     suspend fun findExecutions(project: Project, cycle: CloudBaseCycle, issue: Issue): List<Execution> {
         return executeSearch(
             urlPath = "testexecutions",
