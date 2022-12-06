@@ -32,11 +32,13 @@ ext {
 
 dependencies {
     // BOM with external dependencies restrictions
-    api platform('com.exactpro.th2:bom:3.0.0')
+    api platform('com.exactpro.th2:bom:4.0.2')
 
     // the library for interaction with infra API
-    implementation 'com.exactpro.th2:common:3.39.2'
-    implementation 'com.exactpro.th2:grpc-crawler-data-processor:0.3.1-update-rpt-grpc-SNAPSHOT'
+    implementation 'com.exactpro.th2:common:4.0.0-TH2-4262-reduce-load-book-and-page-3574992387-SNAPSHOT'
+    implementation 'com.exactpro.th2:common-utils:0.0.1-book-and-page-3572891451-SNAPSHOT'
+    implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.0-th2-3834-refactor-properties-3607479560-SNAPSHOT'
+    implementation 'com.exactpro.th2:processor-core:0.0.1-TH2-4262-reduce-load-book-and-page-3627816228-ffc970b-SNAPSHOT'
 
     // Auto service
     compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
@@ -92,7 +94,7 @@ jar {
 }
 
 application {
-    mainClass.set('com.exactpro.th2.dataprocessor.zephyr.BoxMain')
+    mainClass.set('com.exactpro.th2.processor.MainKt')
 }
 
 applicationName = 'service'

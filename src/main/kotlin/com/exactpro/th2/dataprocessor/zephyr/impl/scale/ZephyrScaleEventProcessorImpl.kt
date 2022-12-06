@@ -17,6 +17,8 @@
 package com.exactpro.th2.dataprocessor.zephyr.impl.scale
 
 import com.exactpro.th2.common.grpc.EventStatus
+import com.exactpro.th2.common.message.toJson
+import com.exactpro.th2.dataprocessor.zephyr.GrpcEvent
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
@@ -26,8 +28,7 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.ZephyrScaleApiSer
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
 import mu.KotlinLogging
 
 class ZephyrScaleEventProcessorImpl(
@@ -45,7 +46,7 @@ class ZephyrScaleEventProcessorImpl(
 
     override suspend fun EventProcessorContext<ZephyrScaleApiService>.processEvent(
         eventName: String,
-        event: EventResponse,
+        event: GrpcEvent,
         eventStatus: EventStatus
     ) {
         val testCaseKey = eventName.toIssueKey()
@@ -73,11 +74,11 @@ class ZephyrScaleEventProcessorImpl(
         cycle: Cycle,
         testCase: TestCase,
         executionStatus: ExecutionStatus,
-        event: EventResponse
+        event: GrpcEvent
     ) {
         zephyr.createExecution(
             project, version, cycle, testCase, executionStatus,
-            comment = "Updated by th2 because of event with id: ${event.eventId.id}"
+            comment = "Updated by th2 because of event with id: ${event.toJson()}"
         )
     }
 
@@ -96,11 +97,11 @@ class ZephyrScaleEventProcessorImpl(
         ?: error("cannot find specified version $versionName for project $project. Known versions: ${project.versions}")
 
     private suspend fun EventProcessorContext<ZephyrScaleApiService>.extractCycleAndVersionOrCfgValues(
-        event: EventResponse,
+        event: GrpcEvent,
         cycleRegex: Regex,
         testCase: TestCase
-    ): Pair<String, String> = event.findParent { cycleRegex.matches(it.eventName) }
-        ?.eventName?.split(configuration.delimiter)?.run { get(0).trim() to get(1).trim() }
+    ): Pair<String, String> = event.findParent { cycleRegex.matches(it.name) }
+        ?.name?.split(configuration.delimiter)?.run { get(0).trim() to get(1).trim() }
         ?: run {
             LOGGER.warn { "Handled event ${event.shortString} matches issue pattern but does not have parent event with cycle and version" }
             val fromCfg = getCycleNameAndVersionFromCfg(testCase.key)

@@ -24,6 +24,7 @@ import com.exactpro.th2.dataprocessor.zephyr.RelatedIssuesStrategiesStorage
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ConnectionCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
+import com.exactpro.th2.dataprocessor.zephyr.grpc.toEvent
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ExecutionStatus
@@ -33,8 +34,8 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategy
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyConfiguration
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
+import com.exactpro.th2.dataprovider.lw.grpc.EventResponse
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.eq
@@ -102,16 +103,16 @@ class TestZephyrEventProcessorImplWithStrategies {
     fun `adds executions for related issues`() {
         TestCoroutineScope().runBlockingTest {
             val root = EventResponse.newBuilder()
-                .setEventId(toEventID("1"))
+                .setEventId(toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
                 .build()
             val folderEvent = EventResponse.newBuilder()
-                .setEventId(toEventID("2"))
+                .setEventId(toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"2"))
                 .setParentEventId(root.eventId)
                 .setEventName("TestFolder")
                 .build()
             val issue = EventResponse.newBuilder()
-                .setEventId(toEventID("3"))
+                .setEventId(toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"3"))
                 .setParentEventId(folderEvent.eventId)
                 .setEventName("TEST_1234")
                 .build()
@@ -149,7 +150,7 @@ class TestZephyrEventProcessorImplWithStrategies {
                 listOf(Issue(1, "TEST-42", "TEST"), Issue(1, "BAR-42", "BAR"))
             )
 
-            val processed = processor.onEvent(issue)
+            val processed = processor.onEvent(issue.toEvent())
             Assertions.assertTrue(processed) { "The event for issue was not processed" }
 
             inOrder(jira, zephyr) {
@@ -185,5 +186,9 @@ class TestZephyrEventProcessorImplWithStrategies {
                 verifyNoMoreInteractions()
             }
         }
+    }
+    companion object {
+        private const val BOOK_NAME = "book"
+        private const val SCOPE_NAME = "scope"
     }
 }

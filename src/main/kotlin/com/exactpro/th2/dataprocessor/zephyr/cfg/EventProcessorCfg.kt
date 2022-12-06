@@ -22,7 +22,6 @@ import com.exactpro.th2.common.grpc.EventStatus.SUCCESS
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyConfiguration
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
 
 class EventProcessorCfg(
     /**
@@ -55,7 +54,7 @@ class EventProcessorCfg(
     @JsonDeserialize(converter = DefaultIssueForVersionAndCycleConverter::class)
     val defaultCycleAndVersions: Map<VersionCycleKey, Set<String>> = emptyMap(),
     /**
-     * Time in milliseconds to await until zephyr job is done.
+     * Time in milliseconds to wait until zephyr job is done.
      */
     val jobAwaitTimeout: Long = TimeUnit.SECONDS.toMillis(1),
 
