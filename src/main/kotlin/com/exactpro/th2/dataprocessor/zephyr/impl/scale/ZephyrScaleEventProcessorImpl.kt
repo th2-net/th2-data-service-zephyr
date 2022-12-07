@@ -78,7 +78,7 @@ class ZephyrScaleEventProcessorImpl(
     ) {
         zephyr.createExecution(
             project, version, cycle, testCase, executionStatus,
-            comment = "Updated by th2 because of event with id: ${event.toJson()}"
+            comment = "Updated by th2 because of event with id: ${event.id.toJson()}"
         )
     }
 

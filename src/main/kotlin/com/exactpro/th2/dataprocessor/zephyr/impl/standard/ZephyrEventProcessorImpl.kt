@@ -145,7 +145,7 @@ class ZephyrEventProcessorImpl(
             ExecutionUpdate(
                 id = execution.id,
                 status = executionStatus,
-                comment = "Updated by th2 because of event with id: ${event.toJson()}"
+                comment = "Updated by th2 because of event with id: ${event.id.toJson()}"
             )
         )
     }

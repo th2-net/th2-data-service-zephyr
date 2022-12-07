@@ -22,7 +22,6 @@ import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
 import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
 import com.exactpro.th2.processor.api.IProcessor
-import io.grpc.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -30,8 +29,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 
@@ -49,11 +46,9 @@ class ZephyrEventProcessor internal constructor(
         onError: (GrpcEvent?, Throwable) -> Unit,
     ) : this(connections, processor, onInfo, onError,  CoroutineScope(CoroutineName("ZephyrService") + SupervisorJob()))
     override fun handle(intervalEventId: EventID, event: GrpcEvent) {
-        val context = Context.current()
         scope.launch {
             coroutineScope {
                 try {
-                    startCheckingContext(context)
                     try {
                         if (processor.onEvent(event)) {
                             onInfo(
@@ -94,18 +89,6 @@ class ZephyrEventProcessor internal constructor(
             K_LOGGER.info { "Closing $name connection" }
             runCatching { services.jira.close() }.onFailure { K_LOGGER.error(it) { "Cannot close the JIRA service for connection named $name" } }
             runCatching { services.zephyr.close() }.onFailure { K_LOGGER.error(it) { "Cannot close the Zephyr service for connection named $name" } }
-        }
-    }
-
-    private fun CoroutineScope.startCheckingContext(context: Context) {
-        launch {
-            while (isActive) {
-                if (context.isCancelled) {
-                    K_LOGGER.info { "Context canceled. Canceling the request" }
-                    this@startCheckingContext.cancel("Request was canceled")
-                }
-                delay(100)
-            }
         }
     }
     companion object {
