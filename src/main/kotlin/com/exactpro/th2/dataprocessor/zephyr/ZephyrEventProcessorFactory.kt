@@ -55,12 +55,12 @@ class ZephyrEventProcessorFactory : IProcessorFactory {
 
     private val strategiesStorageImpl = RelatedIssuesStrategiesStorageImpl()
 
-    override fun registerModules(objectMapper: ObjectMapper) {
-        with(objectMapper) {
+    override fun registerModules(configureMapper: ObjectMapper) {
+        with(configureMapper) {
             registerModule(SimpleModule().addAbstractTypeMapping(IProcessorSettings::class.java, ZephyrSynchronizationCfg::class.java))
             enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
         }
-        strategiesStorageImpl.registerTypes(objectMapper)
+        strategiesStorageImpl.registerTypes(configureMapper)
     }
 
     override fun create(context: ProcessorContext): IProcessor {
