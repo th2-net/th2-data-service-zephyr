@@ -61,15 +61,10 @@ spec:
     syncInterval: PT10M
     awaitTimeout: 10
     awaitUnit: SECONDS
-    messages:
-        messageKind: MESSAGE
-        bookToGroups:
-            book1:
-                - group1
-                - group2
-            book2:
-                - group1
-                - group2
+    events:
+      bookToScope:
+          book1: []
+          book2: []
     processorSettings:
       zephyrType: SQUAD
       connection:
