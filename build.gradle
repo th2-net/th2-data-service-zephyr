@@ -38,7 +38,7 @@ dependencies {
     implementation 'com.exactpro.th2:common:5.0.0-TH2-4262-reduce-load-book-and-page-3607143172-SNAPSHOT'
     implementation 'com.exactpro.th2:common-utils:0.0.1-book-and-page-3607472196-SNAPSHOT'
     implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.0-th2-3834-refactor-properties-3607479560-SNAPSHOT'
-    implementation 'com.exactpro.th2:processor-core:0.0.1-TH2-4262-reduce-load-book-and-page-3739179455-7524a15-SNAPSHOT'
+    implementation 'com.exactpro.th2:processor-core:0.0.1-TH2-4262-reduce-load-book-and-page-3748038612-14aa01b-SNAPSHOT'
 
     // Auto service
     compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
