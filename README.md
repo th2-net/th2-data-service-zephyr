@@ -147,6 +147,8 @@ Contains parameters for synchronization with Zephyr
 + **jobAwaitTimeout** - the timeout to await the job for adding test to a cycle/folder
 + **relatedIssuesStrategies** - configures the strategies to find the additional issues related to the currently processing one.
   They will be updated using the version, cycle and folder for the current issue.
++ **testExecutionMode** - defines how the test execution should be reported. By default, it tries to update an existing execution.
+  You can change the behavior by using _CREATE_NEW_ value. The default value it _UPDATE_LAST_.
   
 ##### Strategies (only for Zephyr Squad)
 
