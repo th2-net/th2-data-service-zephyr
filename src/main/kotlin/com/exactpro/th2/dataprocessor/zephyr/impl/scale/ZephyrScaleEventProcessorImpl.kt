@@ -18,16 +18,21 @@ package com.exactpro.th2.dataprocessor.zephyr.impl.scale
 
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
+import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode.CREATE_NEW
+import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode.UPDATE_LAST
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.extensions.findVersion
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.ZephyrScaleApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.BaseCycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventResponse
+import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 
 class ZephyrScaleEventProcessorImpl(
@@ -42,6 +47,12 @@ class ZephyrScaleEventProcessorImpl(
     ) : this(listOf(configuration), connections, dataProvider)
 
     private val defaultCycleRegexp = ".*\\s*\\|\\s*(\\d+\\.?)+\\s*(\\|.*)?".toRegex()
+
+    private val accountInfoByConnection: Map<String, AccountInfo> = runBlocking {
+        connections.mapValues { (_, holder) ->
+            holder.jira.accountInfo()
+        }
+    }
 
     override suspend fun EventProcessorContext<ZephyrScaleApiService>.processEvent(
         eventName: String,
@@ -75,9 +86,17 @@ class ZephyrScaleEventProcessorImpl(
         executionStatus: ExecutionStatus,
         event: EventResponse
     ) {
-        zephyr.createExecution(
+        val action: suspend (
+            ZephyrScaleApiService,
+            Project, Version, BaseCycle, TestCase, ExecutionStatus, comment: String?, executedBy: String?
+        ) -> Unit = when (configuration.testExecutionMode) {
+            UPDATE_LAST -> ZephyrScaleApiService::updateExecution
+            CREATE_NEW -> ZephyrScaleApiService::createExecution
+        }
+        action(zephyr,
             project, version, cycle, testCase, executionStatus,
-            comment = "Updated by th2 because of event with id: ${event.eventId.id}"
+            "Updated by th2 because of event with id: ${event.eventId.id}",
+            accountInfoByConnection[configuration.destination]?.key,
         )
     }
 

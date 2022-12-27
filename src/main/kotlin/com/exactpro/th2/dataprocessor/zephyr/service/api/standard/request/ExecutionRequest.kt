@@ -80,3 +80,20 @@ data class Execution(
     val versionId: Long,
     val status: ExecutionStatus
 )
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+class ExecutionPreservedFields(
+    val id: Int,
+    val assignedTo: String?,
+    val environment: String?
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+class UpdateExecution(
+    val status: String,
+    val version: String,
+    val comment: String?,
+    val executedBy: String?,
+    val assignedTo: String?,
+    val environment: String?,
+)

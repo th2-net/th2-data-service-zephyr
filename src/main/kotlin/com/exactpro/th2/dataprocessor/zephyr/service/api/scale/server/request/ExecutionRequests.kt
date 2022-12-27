@@ -23,6 +23,7 @@ class CreateExecution(
     val status: String,
     val version: String,
     val comment: String?,
+    val executedBy: String?
 )
 
 class ExecutionCreatedResponse(

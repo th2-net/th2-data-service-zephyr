@@ -30,12 +30,15 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionSt
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.CreateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionCreatedResponse
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionPreservedFields
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.UpdateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.JiraApiServiceImpl
 import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.coroutines.runBlocking
@@ -79,13 +82,47 @@ class ZephyrScaleServerApiService(
         }.toCommonModel()
     }
 
+    private suspend fun getLastExecution(testRunKey: String): ExecutionPreservedFields = client
+        .get<List<ExecutionPreservedFields>>("$baseApiUrl/testrun/$testRunKey/testresults")
+        .maxByOrNull { it.id }
+        ?: throw NoSuchElementException("Test Results for Test Run ($testRunKey) not found.")
+
+    override suspend fun updateExecution(
+        project: Project,
+        version: Version,
+        cycle: BaseCycle,
+        testCase: TestCase,
+        status: ExecutionStatus,
+        comment: String?,
+        executedBy: String?
+    ) {
+        LOGGER.trace { "Updating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
+
+        val lastExecution = getLastExecution(cycle.key)
+
+        val result = client.put<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
+            contentType(ContentType.Application.Json)
+            body = UpdateExecution(
+                status = status.name,
+                version = version.name,
+                comment = comment,
+                executedBy = executedBy,
+                assignedTo = lastExecution.assignedTo,
+                environment = lastExecution.environment
+            )
+        }
+
+        LOGGER.trace { "Execution id: ${result.id}" }
+    }
+
     override suspend fun createExecution(
         project: Project,
         version: Version,
         cycle: BaseCycle,
         testCase: TestCase,
         status: ExecutionStatus,
-        comment: String?
+        comment: String?,
+        executedBy: String?
     ) {
         LOGGER.trace { "Creating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
         val result = client.post<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
@@ -94,6 +131,7 @@ class ZephyrScaleServerApiService(
                 status = status.name,
                 version = version.name,
                 comment = comment,
+                executedBy = executedBy
             )
         }
         LOGGER.trace { "Execution id: ${result.id}" }
