@@ -61,6 +61,7 @@ spec:
         SUCCESS: PASS
         FAILED: WIP
       jobAwaitTimeout: 1000
+      testExecutionMode: UPDATE_LAST # CREATE_NEW
       relatedIssuesStrategies:
         - type: linked
           trackLinkedIssues:
