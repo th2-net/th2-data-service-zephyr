@@ -77,7 +77,7 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
         val versionAndCycle = configuration.defaultCycleAndVersions.asSequence()
             .find { it.value.contains(key) }
             ?.key
-        checkNotNull(versionAndCycle) { "Cannot find the version and cycle in the configuration for issue $versionAndCycle" }
+        checkNotNull(versionAndCycle) { "Cannot find the version and cycle in the configuration for issue $key" }
         return versionAndCycle
     }
 
