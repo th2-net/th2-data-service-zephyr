@@ -45,12 +45,12 @@ dependencies {
     kapt 'com.google.auto.service:auto-service:1.0.1'
 
     // JIRA
-    implementation group: 'com.atlassian.jira', name: 'jira-rest-java-client-core', version: '5.2.2'
-    implementation(group: 'io.atlassian.fugue', name: 'fugue', version: '4.7.2') {
+    implementation group: 'com.atlassian.jira', name: 'jira-rest-java-client-core', version: '5.2.4'
+    implementation(group: 'io.atlassian.fugue', name: 'fugue', version: '5.0.0') {
         because("It is required by JIRA rest client but for some reasons it is not in dependencies for it")
     }
-    implementation('com.atlassian.jwt:jwt-core:3.2.0')
-    implementation('com.atlassian.jwt:jwt-api:3.1.0')
+    implementation('com.atlassian.jwt:jwt-core:3.2.3')
+    implementation('com.atlassian.jwt:jwt-api:3.2.3')
 
     // Ktor
     implementation("io.ktor:ktor-client:$ktorVersion")
@@ -108,4 +108,8 @@ dockerPrepare {
 
 docker {
     copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
+}
+
+dependencyLocking {
+    lockAllConfigurations()
 }
