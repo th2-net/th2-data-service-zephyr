@@ -32,13 +32,13 @@ ext {
 
 dependencies {
     // BOM with external dependencies restrictions
-    api platform('com.exactpro.th2:bom:4.0.2')
+    api platform('com.exactpro.th2:bom:4.1.0')
 
     // the library for interaction with infra API
-    implementation 'com.exactpro.th2:common:5.0.0-TH2-4262-reduce-load-book-and-page-3607143172-SNAPSHOT'
-    implementation 'com.exactpro.th2:common-utils:0.0.1-book-and-page-3607472196-SNAPSHOT'
-    implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.0-th2-3834-refactor-properties-3607479560-SNAPSHOT'
-    implementation 'com.exactpro.th2:processor-core:0.0.1-TH2-4262-reduce-load-book-and-page-3748038612-14aa01b-SNAPSHOT'
+    implementation 'com.exactpro.th2:common:5.1.0-dev-version-5-4085018593-8adee33-SNAPSHOT'
+    implementation 'com.exactpro.th2:common-utils:1.0.0-book-and-page-4086360735-d23a5e0-SNAPSHOT'
+    implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.0-dev-version-2-4111786636-SNAPSHOT'
+    implementation 'com.exactpro.th2:processor-core:0.1.0-dev-version-1-4063691039-1761242-SNAPSHOT'
 
     // Auto service
     compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'

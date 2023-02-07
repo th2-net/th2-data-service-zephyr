@@ -1,4 +1,4 @@
-# Zephyr data processor (0.2.0)
+# Zephyr data processor (0.3.0)
 
 Zephyr data processor synchronizes the test in th2 with Zephyr Squad and Zephyr Scale.
 It searches for events that match format in the configuration and updates test executions.
@@ -37,7 +37,7 @@ metadata:
   name: zephyr-processor
 spec:
   image-name: ghcr.io/th2-net/th2-data-processor-zephyr
-  image-version: 0.2.0
+  image-version: 0.3.0
   type: th2-act
   pins:
     grpc:
@@ -52,17 +52,29 @@ spec:
           linkTo:
             - box: lw-data-provider
               pin: server
+    mq:
+      subscribers:
+        - name: events
+          attributes:
+            - event
+            - in
+      publishers:
+        - name: state
+          attributes:
+            - store
   custom-config:
     stateSessionAlias: my-processor-state
     enableStoreState: false
-    from: 2021-06-16T12:00:00.00Z
-    to: 2021-06-17T14:00:00.00Z
-    intervalLength: PT10M
-    syncInterval: PT10M
-    awaitTimeout: 10
-    awaitUnit: SECONDS
-    events:
-      bookToScope:
+    
+    crawler:
+      from: 2021-06-16T12:00:00.00Z
+      to: 2021-06-17T14:00:00.00Z
+      intervalLength: PT10M
+      syncInterval: PT10M
+      awaitTimeout: 10
+      awaitUnit: SECONDS
+      events:
+        bookToScope:
           book1: []
           book2: []
     processorSettings:
@@ -236,6 +248,21 @@ Contains parameters to set up the Logging for inner HTTP clients that are used t
 + level - level logging for HTTP client. Available levels: **ALL**, **HEADERS**, **BODY**, **INFO**, **NONE**
 
 # Changes
+
+## v0.3.0
+
++ migrated to processor-core
+
+### Added
+
++ vulnerability check
+
+### Updated
+
++ bom:4.10
++ common:5.1.0-dev-version
++ grpc-lw-data-provider:2.0.0-dev-version
++ processor-core:0.1.0-dev-version
 
 ## v0.1.0
 

@@ -66,7 +66,7 @@ class ZephyrEventProcessorFactory : IProcessorFactory {
     override fun create(context: ProcessorContext): IProcessor {
         val cfg = context.settings
         check(cfg is ZephyrSynchronizationCfg) {
-            "Settings type mismatch expected: ${ZephyrSynchronizationCfg::class}, actual: ${if (cfg == null) null else cfg::class}"
+            "Settings type mismatch expected: ${ZephyrSynchronizationCfg::class}, actual: ${ cfg?.let{ it::class } }"
         }
 
         val errors: List<String> = cfg.validate()
