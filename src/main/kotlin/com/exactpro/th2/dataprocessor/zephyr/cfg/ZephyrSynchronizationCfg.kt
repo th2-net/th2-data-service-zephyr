@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.cfg
 
+import com.exactpro.th2.processor.api.IProcessorSettings
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -30,7 +31,7 @@ class ZephyrSynchronizationCfg(
     val syncParameters: List<EventProcessorCfg>,
     val httpLogging: HttpLoggingConfiguration = HttpLoggingConfiguration(),
     val zephyrType: ZephyrType = ZephyrType.SQUAD,
-) {
+) : IProcessorSettings {
     init {
         require(connections.isNotEmpty()) { "at least one connection must be specified" }
     }
@@ -93,7 +94,7 @@ class BaseAuth(
 }
 
 class JwtAuth(
-    val baseApiUrl: String,
+    val baseApiUrl: String, //FIXME: property isn't used
     val accessKey: String,
     val secretKey: String,
 ) : Credentials() {

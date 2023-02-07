@@ -1,4 +1,4 @@
-# Zephyr data processor (0.2.0)
+# Zephyr data processor (0.3.0)
 
 Zephyr data processor synchronizes the test in th2 with Zephyr Squad and Zephyr Scale.
 It searches for events that match format in the configuration and updates test executions.
@@ -28,7 +28,7 @@ Root event
 
 ## Configuration
 
-There is an example of full configuration for the data processor
+There is an example of full configuration (infra-2.0) for the data processor
 
 ```yaml
 apiVersion: th2.exactpro.com/v1
@@ -37,47 +37,80 @@ metadata:
   name: zephyr-processor
 spec:
   image-name: ghcr.io/th2-net/th2-data-processor-zephyr
-  image-version: 0.2.0
+  image-version: 0.3.0
   type: th2-act
   pins:
-    - name: server
-      connection-type: grpc
-    - name: to_data_provider
-      connection-type: grpc
+    grpc:
+      client:
+        - name: to_data_provider
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+        - name: to_data_provider_stream
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.QueueDataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+    mq:
+      subscribers:
+        - name: events
+          attributes:
+            - event
+            - in
+      publishers:
+        - name: state
+          attributes:
+            - store
   custom-config:
-    zephyrType: SQUAD
-    connection:
-      baseUrl: "https://your.jira.address.com"
-      jira:
-        username: "jira-user"
-        key: "you password" # or api key
-    dataService:
-      name: "ZephyrService"
-      versionMarker: "0.0.1"
-    syncParameters:
-      issueFormat: "QAP_\\d+"
-      delimiter: '|'
-      statusMapping:
-        SUCCESS: PASS
-        FAILED: WIP
-      jobAwaitTimeout: 1000
-      relatedIssuesStrategies:
-        - type: linked
-          trackLinkedIssues:
-              - linkName: "is cloned by"
-                whitelist:
-                    - projectKey: "P1"
-                      issues:
-                          - TEST-1
-                          - TEST-2
-                          - TEST-3
-                    - projectName: "P2 Project"
-                      issues:
-                          - TEST-1
-                          - TEST-2
-                          - TEST-4
-    httpLogging:
-      level: INFO
+    stateSessionAlias: my-processor-state
+    enableStoreState: false
+    
+    crawler:
+      from: 2021-06-16T12:00:00.00Z
+      to: 2021-06-17T14:00:00.00Z
+      intervalLength: PT10M
+      syncInterval: PT10M
+      awaitTimeout: 10
+      awaitUnit: SECONDS
+      events:
+        bookToScope:
+          book1: []
+          book2: []
+    processorSettings:
+      zephyrType: SQUAD
+      connection:
+        baseUrl: "https://your.jira.address.com"
+        jira:
+          username: "jira-user"
+          key: "you password" # or api key
+      dataService:
+        name: "ZephyrService"
+        versionMarker: "0.0.1"
+      syncParameters:
+        issueFormat: "QAP_\\d+"
+        delimiter: '|'
+        statusMapping:
+          SUCCESS: PASS
+          FAILED: WIP
+        jobAwaitTimeout: 1000
+        relatedIssuesStrategies:
+          - type: linked
+            trackLinkedIssues:
+                - linkName: "is cloned by"
+                  whitelist:
+                      - projectKey: "P1"
+                        issues:
+                            - TEST-1
+                            - TEST-2
+                            - TEST-3
+                      - projectName: "P2 Project"
+                        issues:
+                            - TEST-1
+                            - TEST-2
+                            - TEST-4
+      httpLogging:
+        level: INFO
   extended-settings:
     service:
       enabled: true
@@ -214,31 +247,22 @@ Contains parameters to set up the Logging for inner HTTP clients that are used t
 
 + level - level logging for HTTP client. Available levels: **ALL**, **HEADERS**, **BODY**, **INFO**, **NONE**
 
-## Links example
-
-The **data processor zephyr** requires the link to the **data provider** working in gRPC mode. Link example:
-
-```yaml
-apiVersion: th2.exactpro.com/v1
-kind: Th2Link
-metadata:
-  name: zephyr-service-links
-spec:
-  boxes-relation:
-    router-grpc:
-    - name: data-service-zephyr-to-data-provider
-      from:
-        strategy: filter
-        box: zephyr-service
-        pin: to_data_provider
-      to:
-        service-class: com.exactpro.th2.dataprovider.grpc.DataProviderService
-        strategy: robin
-        box: data-provider
-        pin: server
-```
-
 # Changes
+
+## v0.3.0
+
++ migrated to processor-core
+
+### Added
+
++ vulnerability check
+
+### Updated
+
++ bom:4.10
++ common:5.1.0-dev-version
++ grpc-lw-data-provider:2.0.0-dev-version
++ processor-core:0.1.0-dev-version
 
 ## v0.1.0
 

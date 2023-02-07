@@ -16,24 +16,24 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.impl
 
+import com.exactpro.th2.common.grpc.EventOrBuilder
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.message.toJson
-import com.exactpro.th2.dataprocessor.zephyr.ZephyrEventProcessor
+import com.exactpro.th2.dataprocessor.zephyr.GrpcEvent
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
-import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.getEventSuspend
+import com.exactpro.th2.dataprocessor.zephyr.grpc.getEventSuspend
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
 import mu.KotlinLogging
 
 abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
     private val configurations: List<EventProcessorCfg>,
     private val connections: Map<String, ServiceHolder<ZEPHYR>>,
     protected val dataProvider: AsyncDataProviderService,
-) : ZephyrEventProcessor {
-    override suspend fun onEvent(event: EventResponse): Boolean {
-        val eventName = event.eventName
+) {
+    suspend fun onEvent(event: GrpcEvent): Boolean {
+        val eventName = event.name
         LOGGER.trace { "Processing event ${event.toJson()}" }
         val matchesIssue: List<EventProcessorCfg> = matchesIssue(eventName)
         if (matchesIssue.isEmpty()) {
@@ -51,15 +51,15 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
         return true
     }
 
-    protected abstract suspend fun EventProcessorContext<ZEPHYR>.processEvent(eventName: String, event: EventResponse, eventStatus: EventStatus)
+    protected abstract suspend fun EventProcessorContext<ZEPHYR>.processEvent(eventName: String, event: GrpcEvent, eventStatus: EventStatus)
 
-    protected suspend fun EventResponse.findParent(match: (EventResponse) -> Boolean): EventResponse? {
-        if (!hasParentEventId()) {
+    protected suspend fun GrpcEvent.findParent(match: (GrpcEvent) -> Boolean): GrpcEvent? {
+        if (!hasParentId()) {
             return null
         }
-        var curEvent: EventResponse = this
-        while (curEvent.hasParentEventId()) {
-            curEvent = dataProvider.getEventSuspend(curEvent.parentEventId)
+        var curEvent: GrpcEvent = this
+        while (curEvent.hasParentId()) {
+            curEvent = dataProvider.getEventSuspend(curEvent.parentId)
             if (match(curEvent)) {
                 return curEvent
             }
@@ -67,9 +67,9 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
         return null
     }
 
-    protected suspend fun EventResponse.findRoot(): EventResponse? = findParent { !it.hasParentEventId() }
+    protected suspend fun GrpcEvent.findRoot(): GrpcEvent? = findParent { !it.hasParentId() }
 
-    protected fun matchesIssue(eventName: String): List<EventProcessorCfg> {
+    private fun matchesIssue(eventName: String): List<EventProcessorCfg> {
         return configurations.filter { it.issueRegexp.matches(eventName) }
     }
 
@@ -81,12 +81,7 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
         return versionAndCycle
     }
 
-    protected fun String.toIssueKey(): String = replace('_', '-')
-
-    protected val EventResponse.shortString: String
-        get() = "id: ${eventId.toJson()}; name: $eventName"
-
-    protected open suspend fun gatherExecutionStatus(event: EventResponse): EventStatus {
+    protected open suspend fun gatherExecutionStatus(event: GrpcEvent): EventStatus {
         // TODO: check relations by messages
         return event.status
     }
@@ -103,5 +98,11 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
 
     companion object {
         private val LOGGER = KotlinLogging.logger { }
+
+        @JvmStatic
+        protected fun String.toIssueKey(): String = replace('_', '-')
+        @JvmStatic
+        protected val EventOrBuilder.shortString: String
+            get() = "id: ${id.toJson()}; name: $name"
     }
 }
