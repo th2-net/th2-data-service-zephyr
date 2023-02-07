@@ -18,10 +18,11 @@ package com.exactpro.th2.dataprocessor.zephyr.impl.standard
 
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.message.toJson
+import com.exactpro.th2.dataprocessor.zephyr.GrpcEvent
 import com.exactpro.th2.dataprocessor.zephyr.RelatedIssuesStrategiesStorage
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
-import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.getEventSuspend
+import com.exactpro.th2.dataprocessor.zephyr.grpc.getEventSuspend
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
@@ -34,8 +35,7 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.Execution
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.ExecutionUpdate
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import mu.KotlinLogging
@@ -72,7 +72,7 @@ class ZephyrEventProcessorImpl(
 
     override suspend fun EventProcessorContext<ZephyrApiService>.processEvent(
         eventName: String,
-        event: EventResponse,
+        event: GrpcEvent,
         eventStatus: EventStatus
     ) {
         val executionStatus: BaseExecutionStatus = getExecutionStatusForEvent(configuration.destination, eventStatus)
@@ -88,16 +88,16 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private suspend fun EventProcessorContext<ZephyrApiService>.processEvent(eventName: String, event: EventResponse, executionStatus: BaseExecutionStatus) {
+    private suspend fun EventProcessorContext<ZephyrApiService>.processEvent(eventName: String, event: GrpcEvent, executionStatus: BaseExecutionStatus) {
         LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
         val issue: Issue = getIssue(eventName)
-        val rootEvent: EventResponse? = findRootEvent(event)
-        val folderEvent: EventResponse? = if (event.hasParentEventId() && event.parentEventId != rootEvent?.eventId) {
-            dataProvider.getEventSuspend(event.parentEventId)
+        val rootEvent: GrpcEvent? = findRootEvent(event)
+        val folderEvent: GrpcEvent? = if (event.hasParentId() && event.parentId != rootEvent?.id) {
+            dataProvider.getEventSuspend(event.parentId)
         } else {
             null
         }
-        val folderName: String? = folderEvent?.eventName ?: configuration.folders.asSequence()
+        val folderName: String? = folderEvent?.name ?: configuration.folders.asSequence()
             .filter { it.value.contains(issue.key) }
             .map { it.key }
             .firstOrNull()
@@ -115,7 +115,7 @@ class ZephyrEventProcessorImpl(
     }
 
     private suspend fun EventProcessorContext<ZephyrApiService>.updateOrCreateExecution(
-        event: EventResponse,
+        event: GrpcEvent,
         issue: Issue,
         versionCycleKey: VersionCycleKey,
         folderName: String?,
@@ -145,12 +145,12 @@ class ZephyrEventProcessorImpl(
             ExecutionUpdate(
                 id = execution.id,
                 status = executionStatus,
-                comment = "Updated by th2 because of event with id: ${event.eventId.id}"
+                comment = "Updated by th2 because of event with id: ${event.id.toJson()}"
             )
         )
     }
 
-    private suspend fun findRootEvent(event: EventResponse): EventResponse? = event.findRoot()
+    private suspend fun findRootEvent(event: GrpcEvent): GrpcEvent? = event.findRoot()
 
     private suspend fun EventProcessorContext<ZephyrApiService>.getOrCreateExecution(
         project: Project,
@@ -198,13 +198,13 @@ class ZephyrEventProcessorImpl(
     }
 
     private fun EventProcessorContext<ZephyrApiService>.extractVersionCycleKey(
-        parent: EventResponse?,
+        parent: GrpcEvent?,
         issue: Issue,
     ): VersionCycleKey {
         return if (parent == null) {
             getCycleNameAndVersionFromCfg(issue.key)
         } else {
-            val split = parent.eventName.split(configuration.delimiter)
+            val split = parent.name.split(configuration.delimiter)
             check(split.size >= 2) { "The parent event's name ${parent.shortString} has incorrect format" }
             val (version: String, cycleName: String) = split
             VersionCycleKey(version, cycleName)
@@ -220,7 +220,5 @@ class ZephyrEventProcessorImpl(
 
     companion object {
         private val LOGGER = KotlinLogging.logger { }
-        private val EventResponse.shortString: String
-            get() = "id: ${eventId.toJson()}; name: $eventName"
     }
 }

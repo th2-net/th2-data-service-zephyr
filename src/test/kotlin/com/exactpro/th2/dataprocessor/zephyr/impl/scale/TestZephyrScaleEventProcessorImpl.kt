@@ -21,6 +21,7 @@ import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ConnectionCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
+import com.exactpro.th2.dataprocessor.zephyr.grpc.toEvent
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
@@ -30,8 +31,8 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.ZephyrScaleApiSer
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
+import com.exactpro.th2.dataprovider.lw.grpc.EventResponse
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.argThat
 import com.nhaarman.mockitokotlin2.doAnswer
@@ -98,21 +99,21 @@ internal class TestZephyrScaleEventProcessorImpl {
         }
         TestCoroutineScope().runBlockingTest {
             val root = EventResponse.newBuilder()
-                .setEventId(EventUtils.toEventID("1"))
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"1"))
                 .setEventName("Root")
                 .build()
             val cycleEvent = EventResponse.newBuilder()
-                .setEventId(EventUtils.toEventID("2"))
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"2"))
                 .setParentEventId(root.eventId)
                 .setEventName("TestCycle | $versionValue |${Instant.now()}")
                 .build()
             val intermediateEvent = EventResponse.newBuilder()
-                .setEventId(EventUtils.toEventID("3"))
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"3"))
                 .setParentEventId(cycleEvent.eventId)
                 .setEventName("SomeEvent")
                 .build()
             val testCase = EventResponse.newBuilder()
-                .setEventId(EventUtils.toEventID("4"))
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"4"))
                 .setParentEventId(intermediateEvent.eventId)
                 .setEventName("TEST_T1234")
                 .setStatus(testCaseStatus)
@@ -130,7 +131,7 @@ internal class TestZephyrScaleEventProcessorImpl {
             whenever(zephyr.getCycle(same(project), same(version), isNull(), eq("TestCycle")))
                 .thenReturn(cycle)
 
-            val processed = processor.onEvent(testCase)
+            val processed = processor.onEvent(testCase.toEvent())
             Assertions.assertTrue(processed) { "The event for issue was not processed" }
 
             inOrder(jira, zephyr) {
@@ -158,6 +159,9 @@ internal class TestZephyrScaleEventProcessorImpl {
     }
 
     companion object {
+        private const val BOOK_NAME = "book"
+        private const val SCOPE_NAME = "scope"
+
         @JvmStatic
         fun args(): List<Arguments> = EventStatus.values().filter { it != EventStatus.UNRECOGNIZED }
             .flatMap { status ->

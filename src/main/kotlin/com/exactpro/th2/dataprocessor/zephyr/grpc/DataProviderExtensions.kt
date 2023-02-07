@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.dataprocessor.zephyr.grpc.impl
+package com.exactpro.th2.dataprocessor.zephyr.grpc
 
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.message.toJson
-import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprocessor.zephyr.GrpcEvent
+import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
+import com.exactpro.th2.dataprovider.lw.grpc.EventResponse
+import com.exactpro.th2.dataprovider.lw.grpc.EventResponseOrBuilder
 import io.grpc.stub.StreamObserver
 import mu.KotlinLogging
 import kotlin.coroutines.Continuation
@@ -27,11 +29,24 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-suspend fun AsyncDataProviderService.getEventSuspend(eventId: EventID): EventResponse {
-    return suspendCoroutine {
+suspend fun AsyncDataProviderService.getEventSuspend(eventId: EventID): GrpcEvent {
+    return suspendCoroutine<EventResponse> {
         getEvent(eventId, CoroutineSingleStreamObserver(it) { data -> data.eventId.toJson() })
-    }
+    }.toEvent()
 }
+
+fun EventResponseOrBuilder.toEvent(): GrpcEvent = GrpcEvent.newBuilder().apply {
+    if (hasEventId()) { id = eventId }
+    if (hasParentEventId()) { parentId = parentEventId }
+    name = eventName
+    type = eventType
+    // start timestamp should be equal as id.startTimestamp
+    if (hasEndTimestamp()) { this.endTimestamp = this@toEvent.endTimestamp }
+    this.status = this@toEvent.status
+    this.body = this@toEvent.body
+    addAllAttachedMessageIds(attachedMessageIdList)
+}.build()
+
 
 private class CoroutineSingleStreamObserver<T>(
     private val cont: Continuation<T>,

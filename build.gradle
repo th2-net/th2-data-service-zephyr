@@ -32,11 +32,13 @@ ext {
 
 dependencies {
     // BOM with external dependencies restrictions
-    api platform('com.exactpro.th2:bom:3.0.0')
+    api platform('com.exactpro.th2:bom:4.1.0')
 
     // the library for interaction with infra API
-    implementation 'com.exactpro.th2:common:3.39.2'
-    implementation 'com.exactpro.th2:grpc-crawler-data-processor:0.3.1-update-rpt-grpc-SNAPSHOT'
+    implementation 'com.exactpro.th2:common:5.1.0-dev-version-5-4085018593-8adee33-SNAPSHOT'
+    implementation 'com.exactpro.th2:common-utils:1.0.0-book-and-page-4086360735-d23a5e0-SNAPSHOT'
+    implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.0-dev-version-2-4111786636-SNAPSHOT'
+    implementation 'com.exactpro.th2:processor-core:0.1.0-dev-version-1-4063691039-1761242-SNAPSHOT'
 
     // Auto service
     compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
@@ -62,7 +64,6 @@ dependencies {
     // Idiomatic logging for Kotlin. Wraps slf4j
     implementation 'io.github.microutils:kotlin-logging:2.0.4'
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib"
     implementation "org.jetbrains.kotlin:kotlin-reflect"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.6.0'
@@ -92,7 +93,7 @@ jar {
 }
 
 application {
-    mainClass.set('com.exactpro.th2.dataprocessor.zephyr.BoxMain')
+    mainClass.set('com.exactpro.th2.processor.MainKt')
 }
 
 applicationName = 'service'
