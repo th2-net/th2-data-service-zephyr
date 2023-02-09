@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.strategies.linked
 
-import com.exactpro.th2.dataprocessor.zephyr.model.LinkType
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.LinkType
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyConfiguration
 
 class LinkedIssuesStrategyConfiguration(

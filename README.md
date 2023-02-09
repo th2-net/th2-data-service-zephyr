@@ -1,7 +1,7 @@
-# Zephyr data processor (0.1.0)
+# Zephyr data processor (0.3.0)
 
-Zephyr data processor synchronizes the test in th2 with Zephyr test.
-It searches for events that match format in the configuration and updates (or create new) executions.
+Zephyr data processor synchronizes the test in th2 with Zephyr Squad and Zephyr Scale.
+It searches for events that match format in the configuration and updates test executions.
 
 
 ## Event tree
@@ -9,15 +9,26 @@ It searches for events that match format in the configuration and updates (or cr
 When the data processor finds the event it tries to extract information about folder, version and cycle.
 It checks the event tree. It should have the following format
 
+### Zephyr Squad
+
 ```
 Root event with name `version|CycleName|Any other information you want`
 |- Sub event with folder name. _NOTE: if there are several sub events the closest one to the issue event will be taken_
    |- TEST-1253  // the issue event. Its name must match the format in the configuration
 ```
 
+### Zephyr Scale
+
+```
+Root event
+|- Sub event(s)
+  |- Event with cycle name and version `<CycleName>|<version>|<Any other information>
+    |- TEST-T1253  // the test case event. Its name must match the format in the configuration
+```
+
 ## Configuration
 
-There is an example of full configuration for the data processor
+There is an example of full configuration (infra-2.0) for the data processor
 
 ```yaml
 apiVersion: th2.exactpro.com/v1
@@ -26,46 +37,81 @@ metadata:
   name: zephyr-processor
 spec:
   image-name: ghcr.io/th2-net/th2-data-processor-zephyr
-  image-version: 0.1.0
+  image-version: 0.3.0
   type: th2-act
   pins:
-    - name: server
-      connection-type: grpc
-    - name: to_data_provider
-      connection-type: grpc
+    grpc:
+      client:
+        - name: to_data_provider
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+        - name: to_data_provider_stream
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.QueueDataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+    mq:
+      subscribers:
+        - name: events
+          attributes:
+            - event
+            - in
+      publishers:
+        - name: state
+          attributes:
+            - store
   custom-config:
-    connection:
-      baseUrl: "https://your.jira.address.com"
-      jira:
-        username: "jira-user"
-        key: "you password" # or api key
-    dataService:
-      name: "ZephyrService"
-      versionMarker: "0.0.1"
-    syncParameters:
-      issueFormat: "QAP_\\d+"
-      delimiter: '|'
-      statusMapping:
-        SUCCESS: PASS
-        FAILED: WIP
-      jobAwaitTimeout: 1000
-      relatedIssuesStrategies:
-        - type: linked
-          trackLinkedIssues:
-              - linkName: "is cloned by"
-                whitelist:
-                    - projectKey: "P1"
-                      issues:
-                          - TEST-1
-                          - TEST-2
-                          - TEST-3
-                    - projectName: "P2 Project"
-                      issues:
-                          - TEST-1
-                          - TEST-2
-                          - TEST-4
-    httpLogging:
-      level: INFO
+    stateSessionAlias: my-processor-state
+    enableStoreState: false
+    
+    crawler:
+      from: 2021-06-16T12:00:00.00Z
+      to: 2021-06-17T14:00:00.00Z
+      intervalLength: PT10M
+      syncInterval: PT10M
+      awaitTimeout: 10
+      awaitUnit: SECONDS
+      events:
+        bookToScope:
+          book1: []
+          book2: []
+    processorSettings:
+      zephyrType: SQUAD
+      connection:
+        baseUrl: "https://your.jira.address.com"
+        jira:
+          username: "jira-user"
+          key: "you password" # or api key
+      dataService:
+        name: "ZephyrService"
+        versionMarker: "0.0.1"
+      syncParameters:
+        issueFormat: "QAP_\\d+"
+        delimiter: '|'
+        statusMapping:
+          SUCCESS: PASS
+          FAILED: WIP
+        jobAwaitTimeout: 1000
+        testExecutionMode: UPDATE_LAST # CREATE_NEW
+        relatedIssuesStrategies:
+          - type: linked
+            trackLinkedIssues:
+                - linkName: "is cloned by"
+                  whitelist:
+                      - projectKey: "P1"
+                        issues:
+                            - TEST-1
+                            - TEST-2
+                            - TEST-3
+                      - projectName: "P2 Project"
+                        issues:
+                            - TEST-1
+                            - TEST-2
+                            - TEST-4
+      httpLogging:
+        level: INFO
   extended-settings:
     service:
       enabled: true
@@ -86,14 +132,36 @@ spec:
 
 ### Parameters description
 
+#### zephyrType
+
+Determinate which type of synchronization to use. Possible values:
++ SQUAD
++ SCALE_SERVER
+
+The default value is `SQUAD`
+
 #### connection
 
 Contains information about the endpoint ot connect
 
 + baseUrl - url to the Jira instance
-+ jira - block contains credentials to connect to Jira
++ jira - block contains credentials to connect to Jira. There are several types of credentials:
+  + basic - username and password
     + username - the Jira username
     + key - the Jira password or API key for authentication
+    ```yaml
+      jira:
+        username: "jira-user"
+        key: "you password" # or api key
+    ```
+  + bearer - generated token
+    + token - the generated token to access jira
+    ```yaml
+      jira:
+        type: bearer
+        token: "some generated token"
+    ```
++ zephyr - block contains credentials to connect to Zephyr. By default, the same credentials as for Jira are used.
 
 #### dataService
 
@@ -112,8 +180,11 @@ Contains parameters for synchronization with Zephyr
 + **jobAwaitTimeout** - the timeout to await the job for adding test to a cycle/folder
 + **relatedIssuesStrategies** - configures the strategies to find the additional issues related to the currently processing one.
   They will be updated using the version, cycle and folder for the current issue.
-  
-##### Strategies
++ **testExecutionMode** - defines how the test execution should be reported. By default, it tries to update an existing execution.
+  You can change the behavior by using _CREATE_NEW_ value. The default value it _UPDATE_LAST_.
++ **versionPattern** - the regexp that will be used to match the version part for Zephyr Scale events structure [see structure here](#zephyr-scale).
+  **_Has no effect for Zephyr SQUAD_**. The default value is `(((\d+)|([a-zA-Z]+))\.?)+` (please do not forget to escape `\` by adding another one before `\\`)
+##### Strategies (only for Zephyr Squad)
 
 All strategies should be configured in the following way:
 ```yaml
@@ -180,31 +251,22 @@ Contains parameters to set up the Logging for inner HTTP clients that are used t
 
 + level - level logging for HTTP client. Available levels: **ALL**, **HEADERS**, **BODY**, **INFO**, **NONE**
 
-## Links example
-
-The **data processor zephyr** requires the link to the **data provider** working in gRPC mode. Link example:
-
-```yaml
-apiVersion: th2.exactpro.com/v1
-kind: Th2Link
-metadata:
-  name: zephyr-service-links
-spec:
-  boxes-relation:
-    router-grpc:
-    - name: data-service-zephyr-to-data-provider
-      from:
-        strategy: filter
-        box: zephyr-service
-        pin: to_data_provider
-      to:
-        service-class: com.exactpro.th2.dataprovider.grpc.DataProviderService
-        strategy: robin
-        box: data-provider
-        pin: server
-```
-
 # Changes
+
+## v0.3.0
+
++ migrated to processor-core
+
+### Added
+
++ vulnerability check
+
+### Updated
+
++ bom:4.10
++ common:5.1.0-dev-version
++ grpc-lw-data-provider:2.0.0-dev-version
++ processor-core:0.1.0-dev-version
 
 ## v0.1.0
 
