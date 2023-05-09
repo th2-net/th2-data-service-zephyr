@@ -149,7 +149,8 @@ Contains parameters for synchronization with Zephyr
   They will be updated using the version, cycle and folder for the current issue.
 + **testExecutionMode** - defines how the test execution should be reported. By default, it tries to update an existing execution.
   You can change the behavior by using _CREATE_NEW_ value. The default value it _UPDATE_LAST_.
-  
++ **versionPattern** - the regexp that will be used to match the version part for Zephyr Scale events structure [see structure here](#zephyr-scale).
+  **_Has no effect for Zephyr SQUAD_**. The default value is `(((\d+)|([a-zA-Z]+))\.?)+` (please do not forget to escape `\` by adding another one before `\\`)
 ##### Strategies (only for Zephyr Squad)
 
 All strategies should be configured in the following way:

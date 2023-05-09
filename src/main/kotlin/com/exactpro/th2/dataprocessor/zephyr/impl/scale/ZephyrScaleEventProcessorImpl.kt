@@ -45,7 +45,9 @@ class ZephyrScaleEventProcessorImpl(
         dataProvider: AsyncDataProviderService,
     ) : this(listOf(configuration), connections, dataProvider)
 
-    private val defaultCycleRegexp = ".*\\s*\\|\\s*(((\\d+)|([a-zA-Z]+))\\.?)+\\s*(\\|.*)?".toRegex()
+    private val defaultVersionPattern = "(((\\d+)|([a-zA-Z]+))\\.?)+"
+
+    private val defaultCycleRegexp = ".*\\s*\\|\\s*$defaultVersionPattern\\s*(\\|.*)?".toRegex()
 
     private val accountInfoByConnection: Map<String, AccountInfo> = runBlocking {
         connections.mapValues { (_, holder) ->
@@ -73,8 +75,12 @@ class ZephyrScaleEventProcessorImpl(
     }
 
     private fun EventProcessorContext<ZephyrScaleApiService>.chooseCycleRegex(): Regex =
-        if (configuration.delimiter == '|') defaultCycleRegexp else configuration.delimiter.let {
-            ".*\\s*$it\\s*(\\d+\\.?)+\\s*($it.*)?".toRegex()
+        when (configuration.delimiter) {
+            '|' -> defaultCycleRegexp
+            else -> configuration.delimiter.let {
+                val versionPattern = configuration.versionPattern ?: defaultVersionPattern
+                ".*\\s*$it\\s*$versionPattern\\s*($it.*)?".toRegex()
+            }
         }
 
     private suspend fun EventProcessorContext<ZephyrScaleApiService>.createExecution(
@@ -120,7 +126,9 @@ class ZephyrScaleEventProcessorImpl(
     ): Pair<String, String> = event.findParent { cycleRegex.matches(it.eventName) }
         ?.eventName?.split(configuration.delimiter)?.run { get(0).trim() to get(1).trim() }
         ?: run {
-            LOGGER.warn { "Handled event ${event.shortString} matches issue pattern but does not have parent event with cycle and version" }
+            LOGGER.warn {
+                "Handled event ${event.shortString} matches issue pattern but does not have parent event with cycle and version than matches ${cycleRegex.pattern}"
+            }
             val fromCfg = getCycleNameAndVersionFromCfg(testCase.key)
             fromCfg.cycle to fromCfg.version
         }
