@@ -45,7 +45,7 @@ class ZephyrScaleEventProcessorImpl(
         dataProvider: AsyncDataProviderService,
     ) : this(listOf(configuration), connections, dataProvider)
 
-    private val defaultCycleRegexp = ".*\\s*\\|\\s*(\\d+\\.?)+\\s*(\\|.*)?".toRegex()
+    private val defaultCycleRegexp = ".*\\s*\\|\\s*(((\\d+)|([a-zA-Z]+))\\.?)+\\s*(\\|.*)?".toRegex()
 
     private val accountInfoByConnection: Map<String, AccountInfo> = runBlocking {
         connections.mapValues { (_, holder) ->

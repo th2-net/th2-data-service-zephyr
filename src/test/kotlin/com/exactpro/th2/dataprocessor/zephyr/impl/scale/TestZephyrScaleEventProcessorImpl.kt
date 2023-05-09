@@ -44,39 +44,26 @@ import com.nhaarman.mockitokotlin2.same
 import com.nhaarman.mockitokotlin2.whenever
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
 
 @ExperimentalCoroutinesApi
 internal class TestZephyrScaleEventProcessorImpl {
-    private val version = Version(1, "1.0.0")
-
-    private val project = Project(
-        1,
-        "TEST",
-        "TEST",
-        listOf(version)
-    )
 
     private val jira = mock<JiraApiService> {
         onBlocking { issueByKey(argThat { startsWith("TEST-") }) }.then {
             val key = it.arguments[0] as String
             Issue(1, key, "TEST")
         }
-        onBlocking { projectByKey(eq("TEST")) }.thenReturn(project)
         onBlocking { accountInfo() } doReturn AccountInfo("test", "test_key", "test display")
     }
-    private val zephyr = mock<ZephyrScaleApiService> {
-        onBlocking { getExecutionsStatuses(eq(project)) }.thenReturn(listOf(ExecutionStatus(1, "PASS"), ExecutionStatus(2, "WIP")))
-        onBlocking { getTestCase(argThat { startsWith("TEST-") }) } doAnswer {
-            val key: String = it.getArgument(0)
-            TestCase(1, key, project.key)
-        }
-    }
+    private val zephyr = mock<ZephyrScaleApiService> {}
     private val dataProvider = mock<AsyncDataProviderService> { }
     private val statusMapping: Map<EventStatus, String> = mapOf(
         EventStatus.FAILED to "WIP",
@@ -91,8 +78,24 @@ internal class TestZephyrScaleEventProcessorImpl {
     )
 
     @ParameterizedTest
-    @EnumSource(value = EventStatus::class, names = ["UNRECOGNIZED"], mode = EnumSource.Mode.EXCLUDE)
-    fun `creates all required structure for event`(testCaseStatus: EventStatus) {
+    @MethodSource("args")
+    fun `creates all required structure for event`(testCaseStatus: EventStatus, versionValue: String) {
+        val version = Version(1, versionValue)
+        val project = Project(
+            1,
+            "TEST",
+            "TEST",
+            listOf(version)
+        )
+        runBlocking {
+            doReturn(project).whenever(jira).projectByKey(eq("TEST"))
+            doReturn(listOf(ExecutionStatus(1, "PASS"), ExecutionStatus(2, "WIP")))
+                .whenever(zephyr).getExecutionsStatuses(eq(project))
+            doAnswer {
+                val key: String = it.getArgument(0)
+                TestCase(1, key, project.key)
+            }.whenever(zephyr).getTestCase(argThat { startsWith("TEST-") })
+        }
         TestCoroutineScope().runBlockingTest {
             val root = EventResponse.newBuilder()
                 .setEventId(EventUtils.toEventID("1"))
@@ -101,7 +104,7 @@ internal class TestZephyrScaleEventProcessorImpl {
             val cycleEvent = EventResponse.newBuilder()
                 .setEventId(EventUtils.toEventID("2"))
                 .setParentEventId(root.eventId)
-                .setEventName("TestCycle | 1.0.0 |${Instant.now()}")
+                .setEventName("TestCycle | $versionValue |${Instant.now()}")
                 .build()
             val intermediateEvent = EventResponse.newBuilder()
                 .setEventId(EventUtils.toEventID("3"))
@@ -152,5 +155,14 @@ internal class TestZephyrScaleEventProcessorImpl {
                 verifyNoMoreInteractions()
             }
         }
+    }
+
+    companion object {
+        @JvmStatic
+        fun args(): List<Arguments> = EventStatus.values().filter { it != EventStatus.UNRECOGNIZED }
+            .flatMap { status ->
+                listOf("1", "1.RC", "1.0", "1.0.RC", "1.0.0", "1.0.0.RC", "1.0.0.0", "1.0.0.0.RC")
+                    .map { Arguments.arguments(status, it) }
+            }
     }
 }
