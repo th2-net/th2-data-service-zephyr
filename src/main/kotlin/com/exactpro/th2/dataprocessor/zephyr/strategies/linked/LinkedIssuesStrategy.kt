@@ -17,7 +17,8 @@
 package com.exactpro.th2.dataprocessor.zephyr.strategies.linked
 
 import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategy
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyFactory
 import com.exactpro.th2.dataprocessor.zephyr.strategies.StrategyType
@@ -27,7 +28,7 @@ import com.google.auto.service.AutoService
 class LinkedIssuesStrategy(
     private val configuration: LinkedIssuesStrategyConfiguration
 ) : RelatedIssuesStrategy {
-    override suspend fun findRelatedFor(services: ServiceHolder, issue: Issue): List<Issue> {
+    override suspend fun findRelatedFor(services: ServiceHolder<ZephyrApiService>, issue: Issue): List<Issue> {
         val linkedIssues = arrayListOf<Issue>()
         return configuration.trackLinkedIssues
             .flatMapTo(linkedIssues) { cfg ->

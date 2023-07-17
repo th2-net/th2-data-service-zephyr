@@ -24,7 +24,6 @@ import com.exactpro.th2.crawler.dataprocessor.grpc.DataProcessorInfo
 import com.exactpro.th2.crawler.dataprocessor.grpc.EventDataRequest
 import com.exactpro.th2.crawler.dataprocessor.grpc.EventResponse
 import com.exactpro.th2.crawler.dataprocessor.grpc.Status
-import com.exactpro.th2.dataprovider.grpc.EventData
 import com.exactpro.th2.dataprocessor.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataprocessor.zephyr.cfg.DataServiceCfg
 import com.nhaarman.mockitokotlin2.argThat
@@ -43,6 +42,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Test
+import com.exactpro.th2.dataprovider.grpc.EventResponse as ProviderEventResponse
 
 @ExperimentalCoroutinesApi
 class TestZephyrServiceImpl {
@@ -54,7 +54,7 @@ class TestZephyrServiceImpl {
 
     private val onInfoMock: (Event) -> Unit = mock { }
 
-    private val onErrorMock: (EventData?, Throwable) -> Unit = mock { }
+    private val onErrorMock: (ProviderEventResponse?, Throwable) -> Unit = mock { }
 
     private val service = createService(testScope)
 
@@ -84,7 +84,7 @@ class TestZephyrServiceImpl {
         service.sendEvent(
             EventDataRequest.newBuilder()
                 .setId(crawlerInfo.id)
-                .addEventData(EventData.getDefaultInstance())
+                .addEventData(ProviderEventResponse.getDefaultInstance())
                 .build(), responseObserver
         )
 
@@ -102,7 +102,7 @@ class TestZephyrServiceImpl {
     @Test
     internal fun `returns correct last id on another handshake for same crawler`() {
         testScope.runBlockingTest {
-            val eventData = EventData.newBuilder().setEventId(EventUtils.toEventID("123")).build()
+            val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenReturn(false)
 
             service.crawlerConnect(crawlerInfo, mock { })
@@ -116,7 +116,7 @@ class TestZephyrServiceImpl {
             val responseObserver: StreamObserver<DataProcessorInfo> = mock { }
             service.crawlerConnect(crawlerInfo, responseObserver)
             inOrder(responseObserver) {
-                verify(responseObserver).onNext(eq(DataProcessorInfo.newBuilder().setName("test").setVersion("1").setEventId(eventData.eventId).build()))
+                verify(responseObserver).onNext(eq(DataProcessorInfo.newBuilder().setName("test").setVersion("1").build()))
                 verify(responseObserver).onCompleted()
                 verifyNoMoreInteractions()
             }
@@ -126,7 +126,7 @@ class TestZephyrServiceImpl {
     @Test
     internal fun `returns correct id in response`() {
         testScope.runBlockingTest {
-            val eventData = EventData.newBuilder().setEventId(EventUtils.toEventID("123")).build()
+            val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenReturn(false)
 
             service.crawlerConnect(crawlerInfo, mock { })
@@ -158,7 +158,7 @@ class TestZephyrServiceImpl {
     @Test
     internal fun `calls onInfo on processed event`() {
         testScope.runBlockingTest {
-            val eventData = EventData.newBuilder().setEventId(EventUtils.toEventID("123")).build()
+            val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenReturn(true)
 
             service.crawlerConnect(crawlerInfo, mock { })
@@ -196,7 +196,7 @@ class TestZephyrServiceImpl {
     @Test
     internal fun `calls onError on exception thrown`() {
         testScope.runBlockingTest {
-            val eventData = EventData.newBuilder().setEventId(EventUtils.toEventID("123")).build()
+            val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenThrow(IllegalStateException::class.java)
 
             service.crawlerConnect(crawlerInfo, mock { })

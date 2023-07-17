@@ -15,18 +15,19 @@ targetCompatibility = JavaVersion.VERSION_11
 compileKotlin {
     kotlinOptions {
         jvmTarget = "11"
-
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 }
 
 compileTestKotlin {
     kotlinOptions {
         jvmTarget = "11"
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 }
 
 ext {
-    ktorVersion = '1.5.4'
+    ktorVersion = '1.6.5'
 }
 
 dependencies {
@@ -34,12 +35,12 @@ dependencies {
     api platform('com.exactpro.th2:bom:3.0.0')
 
     // the library for interaction with infra API
-    implementation 'com.exactpro.th2:common:3.16.3'
-    implementation 'com.exactpro.th2:grpc-crawler-data-processor:0.0.1'
+    implementation 'com.exactpro.th2:common:3.39.2'
+    implementation 'com.exactpro.th2:grpc-crawler-data-processor:0.3.1-update-rpt-grpc-SNAPSHOT'
 
     // Auto service
-    compileOnly 'com.google.auto.service:auto-service-annotations:1.0'
-    kapt 'com.google.auto.service:auto-service:1.0'
+    compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
+    kapt 'com.google.auto.service:auto-service:1.0.1'
 
     // JIRA
     implementation group: 'com.atlassian.jira', name: 'jira-rest-java-client-core', version: '5.2.2'
@@ -57,10 +58,6 @@ dependencies {
     implementation("io.ktor:ktor-client-auth:$ktorVersion")
     implementation("io.ktor:ktor-client-logging:$ktorVersion")
     implementation("io.ktor:ktor-client-jackson:$ktorVersion")
-
-    // Logging. All versions are specified in BOM dependency
-    implementation "org.slf4j:slf4j-log4j12"
-    implementation "org.slf4j:slf4j-api"
 
     // Idiomatic logging for Kotlin. Wraps slf4j
     implementation 'io.github.microutils:kotlin-logging:2.0.4'

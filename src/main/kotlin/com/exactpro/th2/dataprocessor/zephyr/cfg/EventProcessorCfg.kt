@@ -22,7 +22,6 @@ import com.exactpro.th2.common.grpc.EventStatus.SUCCESS
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyConfiguration
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
 
 class EventProcessorCfg(
     /**
@@ -63,11 +62,30 @@ class EventProcessorCfg(
      * The list of strategies to find the related issues
      */
     val relatedIssuesStrategies: List<RelatedIssuesStrategyConfiguration> = emptyList(),
+
+    /**
+     * Defines how the processor should interact with execution. By default, it tries to update the last one (if it is possible).
+     * You can change the mode to [TestExecutionMode.CREATE_NEW] to change the behavior (if it is supported by zephyr)
+     */
+    val testExecutionMode: TestExecutionMode = TestExecutionMode.UPDATE_LAST,
+
+    /**
+     * The regular expression that is used to match the version inside event with cycle information.
+     * This option is only applicable for [SCALE_SERVER][com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType.SCALE_SERVER] Zephyr service.
+     * Has no effect for [SQUAD][com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType.SQUAD] type.
+     */
+    val versionPattern: String? = null,
 ) {
     val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {
         require(jobAwaitTimeout > 0) { "jobAwaitTimeout must be grater than 0" }
         require(statusMapping.containsKey(FAILED)) { "mapping for $FAILED status must be set" }
         require(statusMapping.containsKey(SUCCESS)) { "mapping for $SUCCESS status must be set" }
+        versionPattern?.runCatching { toPattern() }
+            ?.onFailure { throw IllegalArgumentException("pattern $versionPattern cannot be converted to regexp", it) }
     }
+}
+
+enum class TestExecutionMode {
+    UPDATE_LAST, CREATE_NEW
 }

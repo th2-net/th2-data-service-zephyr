@@ -17,7 +17,7 @@
 package com.exactpro.th2.dataprocessor.zephyr.cfg
 
 import com.exactpro.th2.common.grpc.EventStatus
-import com.exactpro.th2.dataprocessor.zephyr.impl.RelatedIssuesStrategiesStorageImpl
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.RelatedIssuesStrategiesStorageImpl
 import com.exactpro.th2.dataprocessor.zephyr.strategies.linked.LinkedIssuesStrategyConfiguration
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -64,8 +64,10 @@ class TestZephyrSynchronizationCfg {
         with(cfg.connections.first()) {
             assertEquals(ConnectionCfg.DEFAULT_NAME, name)
             assertEquals("https://your.jira.address.com", baseUrl)
-            assertEquals("jira-user", jira.username)
-            assertEquals("your password", jira.key)
+            assertTrue(jira is BaseAuth) { "unexpected type of credentials: ${jira::class}" }
+            val baseAuth = jira as BaseAuth
+            assertEquals("jira-user", baseAuth.username)
+            assertEquals("your password", baseAuth.key)
         }
         with(cfg.dataService) {
             assertEquals("ZephyrService", name)

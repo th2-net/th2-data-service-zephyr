@@ -20,21 +20,29 @@ package com.exactpro.th2.dataprocessor.zephyr
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils.createMessageBean
 import com.exactpro.th2.common.grpc.EventBatch
-import com.exactpro.th2.common.metrics.liveness
-import com.exactpro.th2.common.metrics.readiness
+import com.exactpro.th2.common.metrics.LIVENESS_MONITOR
+import com.exactpro.th2.common.metrics.READINESS_MONITOR
 import com.exactpro.th2.common.schema.factory.CommonFactory
 import com.exactpro.th2.common.schema.factory.extensions.getCustomConfiguration
+import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
+import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventData
+import com.exactpro.th2.dataprovider.grpc.EventResponse
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg.Companion.MAPPER
+import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType
 import com.exactpro.th2.dataprocessor.zephyr.cfg.util.validate
 import com.exactpro.th2.dataprocessor.zephyr.grpc.impl.ZephyrServiceImpl
-import com.exactpro.th2.dataprocessor.zephyr.impl.JiraApiServiceImpl
-import com.exactpro.th2.dataprocessor.zephyr.impl.RelatedIssuesStrategiesStorageImpl
 import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
-import com.exactpro.th2.dataprocessor.zephyr.impl.ZephyrApiServiceImpl
-import com.exactpro.th2.dataprocessor.zephyr.impl.ZephyrEventProcessorImpl
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.ScaleServiceHolder
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.ZephyrScaleEventProcessorImpl
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.JiraApiServiceImpl
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.RelatedIssuesStrategiesStorageImpl
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.StandardServiceHolder
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.ZephyrEventProcessorImpl
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.server.ZephyrScaleServerApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.standard.ZephyrApiServiceImpl
 import mu.KotlinLogging
 import java.util.Deque
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -82,7 +90,7 @@ fun main(args: Array<String>) {
         }
 
         // The BOX is alive
-        liveness = true
+        LIVENESS_MONITOR.enable()
 
         val eventRouter = factory.eventBatchRouter
         val root = Event.start().endTimestamp()
@@ -98,20 +106,21 @@ fun main(args: Array<String>) {
 
         val dataProvider = factory.grpcRouter.getService(AsyncDataProviderService::class.java)
 
-        val connections: Map<String, ServiceHolder> = cfg.connections.associate { connection ->
-            val jiraApi = JiraApiServiceImpl(
-                connection.baseUrl,
-                connection.jira,
-                cfg.httpLogging
-            )
+        fun createSquad(): Pair<Map<String, ServiceHolder<*>>, ZephyrEventProcessor> {
+            val connections: Map<String, StandardServiceHolder> = cfg.createConnections(::StandardServiceHolder, ::ZephyrApiServiceImpl)
+            val processor = ZephyrEventProcessorImpl(cfg.syncParameters, connections, dataProvider, strategiesStorageImpl)
+            return connections to processor
+        }
 
-            val zephyrApi = ZephyrApiServiceImpl(
-                connection.baseUrl,
-                connection.zephyr,
-                cfg.httpLogging
-            )
+        fun createScale(): Pair<Map<String, ServiceHolder<*>>, ZephyrEventProcessor> {
+            val connections: Map<String, ScaleServiceHolder> = cfg.createConnections(::ScaleServiceHolder, ::ZephyrScaleServerApiService)
+            val processor = ZephyrScaleEventProcessorImpl(cfg.syncParameters, connections, dataProvider)
+            return connections to processor
+        }
 
-            connection.name to ServiceHolder(jiraApi, zephyrApi)
+        val (connections: Map<String, ServiceHolder<*>>, processor) = when (cfg.zephyrType) {
+            ZephyrType.SQUAD -> createSquad()
+            ZephyrType.SCALE_SERVER -> createScale()
         }
 
         resources += AutoCloseable {
@@ -122,7 +131,6 @@ fun main(args: Array<String>) {
             }
         }
 
-        val processor = ZephyrEventProcessorImpl(cfg.syncParameters, connections, dataProvider, strategiesStorageImpl)
         val onInfo: (Event) -> Unit = { event ->
             runCatching {
                 eventRouter.send(
@@ -133,7 +141,7 @@ fun main(args: Array<String>) {
             }.onFailure { LOGGER.error(it) { "Cannot send event ${event.id}" } }
         }
 
-        val onError: (EventData?, Throwable) -> Unit = { event, t ->
+        val onError: (EventResponse?, Throwable) -> Unit = { event, t ->
             runCatching {
                 eventRouter.send(
                     EventBatch.newBuilder()
@@ -169,7 +177,7 @@ fun main(args: Array<String>) {
         }
 
         // The BOX is ready to work
-        readiness = true
+        READINESS_MONITOR.enable()
 
         awaitShutdown(lock, condition)
     } catch (ex: Exception) {
@@ -178,13 +186,33 @@ fun main(args: Array<String>) {
     }
 }
 
+private fun <T : AutoCloseable, H : ServiceHolder<T>> ZephyrSynchronizationCfg.createConnections(
+    serviceHolder: (JiraApiService, T) -> H,
+    zephyrSupplier: (baseUrl: String, cred: Credentials, httpCfg: HttpLoggingConfiguration) -> T
+): Map<String, H> =
+    connections.associate { connection ->
+        val jiraApi = JiraApiServiceImpl(
+            connection.baseUrl,
+            connection.jira,
+            httpLogging
+        )
+
+        val zephyrApi = zephyrSupplier(
+            connection.baseUrl,
+            connection.zephyr,
+            httpLogging
+        )
+
+        connection.name to serviceHolder(jiraApi, zephyrApi)
+    }
+
 private fun configureShutdownHook(resources: Deque<AutoCloseable>, lock: ReentrantLock, condition: Condition) {
     Runtime.getRuntime().addShutdownHook(thread(
         start = false,
         name = "Shutdown hook"
     ) {
         LOGGER.info { "Shutdown start" }
-        readiness = false
+        READINESS_MONITOR.disable()
         try {
             lock.lock()
             condition.signalAll()
@@ -198,7 +226,7 @@ private fun configureShutdownHook(resources: Deque<AutoCloseable>, lock: Reentra
                 LOGGER.error(e) { "Cannot close resource ${resource::class}" }
             }
         }
-        liveness = false
+        LIVENESS_MONITOR.disable()
         LOGGER.info { "Shutdown end" }
     })
 }

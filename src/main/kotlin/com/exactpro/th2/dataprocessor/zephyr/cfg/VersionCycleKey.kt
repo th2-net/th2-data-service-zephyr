@@ -19,7 +19,7 @@ package com.exactpro.th2.dataprocessor.zephyr.cfg
 import com.fasterxml.jackson.databind.util.StdConverter
 import java.util.stream.Collectors
 
-class VersionCycleKey(
+data class VersionCycleKey(
     val version: String,
     val cycle: String
 ) {

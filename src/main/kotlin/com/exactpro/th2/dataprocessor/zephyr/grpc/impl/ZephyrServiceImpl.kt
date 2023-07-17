@@ -19,15 +19,17 @@ package com.exactpro.th2.dataprocessor.zephyr.grpc.impl
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.message.toJson
-import com.exactpro.th2.dataprovider.grpc.EventData
+import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.crawler.dataprocessor.grpc.CrawlerId
 import com.exactpro.th2.crawler.dataprocessor.grpc.CrawlerInfo
 import com.exactpro.th2.crawler.dataprocessor.grpc.DataProcessorGrpc
 import com.exactpro.th2.crawler.dataprocessor.grpc.DataProcessorInfo
 import com.exactpro.th2.crawler.dataprocessor.grpc.EventDataRequest
 import com.exactpro.th2.crawler.dataprocessor.grpc.EventResponse
+import com.exactpro.th2.crawler.dataprocessor.grpc.IntervalInfo
 import com.exactpro.th2.dataprocessor.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataprocessor.zephyr.cfg.DataServiceCfg
+import com.google.protobuf.Empty
 import io.grpc.Context
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
@@ -45,19 +47,20 @@ import mu.KotlinLogging
 import org.apache.commons.lang3.exception.ExceptionUtils
 import java.util.concurrent.ConcurrentHashMap
 import com.exactpro.th2.crawler.dataprocessor.grpc.Status as DataServiceResponseStatus
+import com.exactpro.th2.dataprovider.grpc.EventResponse as ProviderEventResponse
 
 class ZephyrServiceImpl internal constructor(
     private val configuration: DataServiceCfg,
     private val processor: ZephyrEventProcessor,
     private val onInfo: (Event) -> Unit,
-    private val onError: (EventData?, Throwable) -> Unit,
+    private val onError: (ProviderEventResponse?, Throwable) -> Unit,
     private val scope: CoroutineScope
 ) : DataProcessorGrpc.DataProcessorImplBase(), AutoCloseable {
     constructor(
         configuration: DataServiceCfg,
         processor: ZephyrEventProcessor,
         onInfo: (Event) -> Unit,
-        onError: (EventData?, Throwable) -> Unit,
+        onError: (ProviderEventResponse?, Throwable) -> Unit,
     ) : this(configuration, processor, onInfo, onError,  CoroutineScope(CoroutineName("ZephyrService") + SupervisorJob()))
     private val knownCrawlers: MutableSet<CrawlerId> = ConcurrentHashMap.newKeySet()
     private val lastEvent: MutableMap<CrawlerId, EventID> = ConcurrentHashMap()
@@ -68,12 +71,13 @@ class ZephyrServiceImpl internal constructor(
         responseObserver.onNext(DataProcessorInfo.newBuilder()
             .setName(configuration.name)
             .setVersion(configuration.versionMarker)
-            .apply {
-                lastEvent[request.id]?.let {
-                    eventId = it
-                }
-            }
             .build())
+        responseObserver.onCompleted()
+    }
+
+    override fun intervalStart(request: IntervalInfo, responseObserver: StreamObserver<Empty>) {
+        LOGGER.trace { "Received interval start info: ${request.startTime.toInstant()} - ${request.endTime.toInstant()}" }
+        responseObserver.onNext(Empty.getDefaultInstance())
         responseObserver.onCompleted()
     }
 

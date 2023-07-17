@@ -16,13 +16,13 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.strategies.linked
 
-import com.exactpro.th2.dataprocessor.zephyr.JiraApiService
-import com.exactpro.th2.dataprocessor.zephyr.ZephyrApiService
-import com.exactpro.th2.dataprocessor.zephyr.impl.ServiceHolder
-import com.exactpro.th2.dataprocessor.zephyr.model.Issue
-import com.exactpro.th2.dataprocessor.zephyr.model.IssueLink
-import com.exactpro.th2.dataprocessor.zephyr.model.LinkType
-import com.exactpro.th2.dataprocessor.zephyr.model.Project
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.ZephyrApiService
+import com.exactpro.th2.dataprocessor.zephyr.impl.standard.StandardServiceHolder
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.IssueLink
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.LinkType
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.strategies.linked.TrackingWhiteList.Companion.ALL_ISSUES
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.mock
@@ -65,7 +65,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-42", "TMP",
                     listOf(
@@ -104,7 +104,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-42", "TMP",
                     listOf(
@@ -143,7 +143,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-43", "TMP",
                     listOf(
@@ -177,7 +177,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-42", "TMP",
                     listOf(
@@ -214,7 +214,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-42", "TMP",
                     listOf(
@@ -254,7 +254,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-43", "TMP",
                     listOf(
@@ -302,7 +302,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-42", "TMP",
                     listOf(
@@ -342,7 +342,7 @@ class TestLinkedIssuesStrategy {
 
         runBlockingTest {
             val issues = strategy.findRelatedFor(
-                ServiceHolder(jira, zephyr),
+                StandardServiceHolder(jira, zephyr),
                 Issue(
                     1, "TMP-42", "TMP",
                     listOf(

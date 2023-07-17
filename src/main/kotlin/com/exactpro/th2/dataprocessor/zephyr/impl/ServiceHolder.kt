@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.impl
 
-import com.exactpro.th2.dataprocessor.zephyr.JiraApiService
-import com.exactpro.th2.dataprocessor.zephyr.ZephyrApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 
-class ServiceHolder(
-    val jira: JiraApiService,
-    val zephyr: ZephyrApiService
-)
+interface ServiceHolder<out ZEPHYR : AutoCloseable> {
+    val jira: JiraApiService
+    val zephyr: ZEPHYR
+}

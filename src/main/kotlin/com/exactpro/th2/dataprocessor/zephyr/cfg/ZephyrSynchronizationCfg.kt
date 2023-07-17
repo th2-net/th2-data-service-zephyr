@@ -28,7 +28,8 @@ class ZephyrSynchronizationCfg(
     val dataService: DataServiceCfg,
     @JsonAlias("connection") val connections: List<ConnectionCfg>,
     val syncParameters: List<EventProcessorCfg>,
-    val httpLogging: HttpLoggingConfiguration = HttpLoggingConfiguration()
+    val httpLogging: HttpLoggingConfiguration = HttpLoggingConfiguration(),
+    val zephyrType: ZephyrType = ZephyrType.SQUAD,
 ) {
     init {
         require(connections.isNotEmpty()) { "at least one connection must be specified" }
@@ -37,6 +38,10 @@ class ZephyrSynchronizationCfg(
         val MAPPER: ObjectMapper = jacksonObjectMapper()
             .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
     }
+}
+
+enum class ZephyrType {
+    SQUAD, SCALE_SERVER,
 }
 
 class DataServiceCfg(
@@ -56,7 +61,7 @@ class HttpLoggingConfiguration(
 class ConnectionCfg(
     val name: String = DEFAULT_NAME,
     val baseUrl: String,
-    val jira: BaseAuth,
+    val jira: Credentials,
     val zephyr: Credentials = jira
 ) {
     companion object {
@@ -71,8 +76,9 @@ class ConnectionCfg(
     defaultImpl = BaseAuth::class
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(name = "base", value = BaseAuth::class),
-    JsonSubTypes.Type(name = "jwt", value = JwtAuth::class)
+    JsonSubTypes.Type(name = "standard", value = BaseAuth::class),
+    JsonSubTypes.Type(name = "jwt", value = JwtAuth::class),
+    JsonSubTypes.Type(name = "bearer", value = BearerAuth::class),
 )
 sealed class Credentials
 
@@ -97,4 +103,12 @@ class JwtAuth(
         require(secretKey.isNotBlank()) { "secretKey cannot be blank" }
     }
     var accountId: String? = null
+}
+
+class BearerAuth(
+    val token: String,
+) : Credentials() {
+    init {
+        require(token.isNotBlank()) { "token cannot be blank" }
+    }
 }
