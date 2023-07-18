@@ -56,12 +56,13 @@ import java.time.Instant
 @ExperimentalCoroutinesApi
 internal class TestZephyrScaleEventProcessorImpl {
 
+    private val accountInfo = AccountInfo("test", "test_key", "test_account", "test display")
     private val jira = mock<JiraApiService> {
         onBlocking { issueByKey(argThat { startsWith("TEST-") }) }.then {
             val key = it.arguments[0] as String
             Issue(1, key, "TEST")
         }
-        onBlocking { accountInfo() } doReturn AccountInfo("test", "test_key", "test display")
+        onBlocking { accountInfo() } doReturn accountInfo
     }
     private val zephyr = mock<ZephyrScaleApiService> {}
     private val dataProvider = mock<AsyncDataProviderService> { }
@@ -150,7 +151,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { key == "TEST-T1234" },
                     argThat { name == statusMapping[testCaseStatus] },
                     argThat { contains(testCase.eventId.id) },
-                    eq("test_key")
+                    same(accountInfo),
                 )
                 verifyNoMoreInteractions()
             }

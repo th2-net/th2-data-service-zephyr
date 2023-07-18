@@ -93,7 +93,7 @@ class ZephyrScaleEventProcessorImpl(
     ) {
         val action: suspend (
             ZephyrScaleApiService,
-            Project, Version, BaseCycle, TestCase, ExecutionStatus, comment: String?, executedBy: String?
+            Project, Version, BaseCycle, TestCase, ExecutionStatus, comment: String?, accountInfo: AccountInfo?
         ) -> Unit = when (configuration.testExecutionMode) {
             TestExecutionMode.UPDATE_LAST -> ZephyrScaleApiService::updateExecution
             TestExecutionMode.CREATE_NEW -> ZephyrScaleApiService::createExecution
@@ -101,7 +101,7 @@ class ZephyrScaleEventProcessorImpl(
         action(zephyr,
             project, version, cycle, testCase, executionStatus,
             "Updated by th2 because of event with id: ${event.eventId.id}",
-            accountInfoByConnection[configuration.destination]?.key,
+            accountInfoByConnection[configuration.destination],
         )
     }
 

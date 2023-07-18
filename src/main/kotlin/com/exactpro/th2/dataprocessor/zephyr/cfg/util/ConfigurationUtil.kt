@@ -16,12 +16,28 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.cfg.util
 
+import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg
+import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType
 
 fun ZephyrSynchronizationCfg.validate(): List<String> {
     return arrayListOf<String>().also {
         checkConnectionsUniqueness(it)
         checkSyncParametersDestinations(it)
+        checkExecutionMode(it)
+    }
+}
+
+fun ZephyrSynchronizationCfg.checkExecutionMode(errors: MutableList<String>) {
+    if (zephyrType != ZephyrType.SCALE_CLOUD) {
+        return
+    }
+    val unsupportedOperation = syncParameters.filter {
+        it.testExecutionMode == TestExecutionMode.UPDATE_LAST
+    }
+    unsupportedOperation.forEach {
+        errors += "Synchronization parameters with destination ${it.destination} " +
+            "have unsupported execution mode ${it.testExecutionMode} for zephyr $zephyrType"
     }
 }
 

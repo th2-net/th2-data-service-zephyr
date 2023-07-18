@@ -28,7 +28,7 @@ class Cycle(
     id: Long,
     key: String,
     val name: String,
-    val jiraProjectVersion: BaseVersion,
+    val jiraProjectVersion: BaseVersion?,
     val folder: BaseFolder?,
 ) : BaseCycle(id, key)
 
