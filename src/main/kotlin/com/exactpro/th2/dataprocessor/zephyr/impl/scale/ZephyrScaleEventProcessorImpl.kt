@@ -32,7 +32,11 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprovider.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.grpc.EventResponse
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import mu.KotlinLogging
+import org.apache.commons.collections4.map.LRUMap
+import javax.annotation.concurrent.GuardedBy
 
 class ZephyrScaleEventProcessorImpl(
     configurations: List<EventProcessorCfg>,
@@ -54,6 +58,17 @@ class ZephyrScaleEventProcessorImpl(
             holder.jira.accountInfo()
         }
     }
+
+    private data class CycleCacheKey(
+        private val projectId: Long,
+        private val version: String,
+        private val name: String,
+    )
+
+    private val lock = Mutex()
+
+    @GuardedBy("lock")
+    private val cycleCache = LRUMap<CycleCacheKey, Cycle>(100)
 
     override suspend fun EventProcessorContext<ZephyrScaleApiService>.processEvent(
         eventName: String,
@@ -110,8 +125,16 @@ class ZephyrScaleEventProcessorImpl(
         version: Version,
         cycleName: String,
         versionName: String
-    ): Cycle = zephyr.getCycle(project, version, folder = null, cycleName)
-        ?: error("cannot find cycle $cycleName for project ${project.key} and version $versionName")
+    ): Cycle {
+        // We cache the result because the search for cycle by name takes a lot of time
+        val cacheKey = CycleCacheKey(project.id, version.name, cycleName)
+        return lock.withLock {
+            val cachedCycle = cycleCache[cacheKey]
+            cachedCycle?.apply { LOGGER.trace { "Cycle cache hit. Key: $cacheKey, Value: $key ($name)" } }
+                ?: zephyr.getCycle(project, version, folder = null, cycleName)?.also { cycleCache[cacheKey] = it }
+                ?: error("cannot find cycle $cycleName for project ${project.key} and version $versionName")
+        }
+    }
 
     private fun findVersion(
         project: Project,

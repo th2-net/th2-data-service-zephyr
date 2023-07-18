@@ -54,6 +54,7 @@ class ZephyrScaleCloudApiServiceImpl(
 ) : BaseZephyrApiService(url, credentials, httpLogging, API_PREFIX), ZephyrScaleApiService {
 
     override suspend fun getExecutionsStatuses(project: Project): List<ExecutionStatus> {
+        LOGGER.trace { "Getting statuses for project ${project.key}" }
         return executeSearch(
             urlPath = "statuses",
             params = mapOf(
@@ -64,6 +65,7 @@ class ZephyrScaleCloudApiServiceImpl(
     }
 
     override suspend fun getTestCase(key: String): TestCase {
+        LOGGER.trace { "Getting test case with key $key" }
         require(key.isNotBlank()) { "key cannot be blank" }
         return client.get<CloudTestCase>("$baseApiUrl/testcases/$key").run {
             val project = client.get<ZephyrProject>(project.self)
@@ -95,10 +97,9 @@ class ZephyrScaleCloudApiServiceImpl(
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     override suspend fun getCycle(project: Project, version: Version, folder: BaseFolder?, name: String): Cycle? {
+        LOGGER.trace { "Getting cycle for project ${project.key} with version ${version.name}, folder ${folder?.name} and name $name" }
         val cloudFolder = folder?.toCloud()
-        // TODO: add caching
         return find<CloudCycle>(
             urlPath = "testcycles",
             params = buildMap {
@@ -150,6 +151,8 @@ class ZephyrScaleCloudApiServiceImpl(
         comment: String?,
         accountInfo: AccountInfo?
     ) {
+        LOGGER.trace { "Creating execution: project ${project.key} with version ${version.name}, cycle ${cycle.key}, " +
+            "test case ${testCase.key}, status $status, comment: $comment, accountInfo: $accountInfo" }
         return client.post("$baseApiUrl/testexecutions") {
             contentType(ContentType.Application.Json)
             body = CreateExecution(
