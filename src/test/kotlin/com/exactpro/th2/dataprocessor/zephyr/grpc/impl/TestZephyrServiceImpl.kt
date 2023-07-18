@@ -26,27 +26,27 @@ import com.exactpro.th2.crawler.dataprocessor.grpc.EventResponse
 import com.exactpro.th2.crawler.dataprocessor.grpc.Status
 import com.exactpro.th2.dataprocessor.zephyr.ZephyrEventProcessor
 import com.exactpro.th2.dataprocessor.zephyr.cfg.DataServiceCfg
-import com.nhaarman.mockitokotlin2.argThat
-import com.nhaarman.mockitokotlin2.eq
-import com.nhaarman.mockitokotlin2.inOrder
-import com.nhaarman.mockitokotlin2.isA
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.same
-import com.nhaarman.mockitokotlin2.verify
-import com.nhaarman.mockitokotlin2.verifyZeroInteractions
-import com.nhaarman.mockitokotlin2.whenever
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.test.TestCoroutineScope
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.isA
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.same
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.whenever
 import com.exactpro.th2.dataprovider.grpc.EventResponse as ProviderEventResponse
 
 @ExperimentalCoroutinesApi
 class TestZephyrServiceImpl {
-    private val testScope = TestCoroutineScope()
+    private val testScope = TestScope()
     private val crawlerInfo = CrawlerInfo.newBuilder()
         .setId(CrawlerId.newBuilder().setName("testCrawler"))
         .build()
@@ -96,12 +96,12 @@ class TestZephyrServiceImpl {
             verify(responseObserver).onCompleted()
             verifyNoMoreInteractions()
         }
-        verifyZeroInteractions(processorMock, onInfoMock, onErrorMock)
+        verifyNoInteractions(processorMock, onInfoMock, onErrorMock)
     }
 
     @Test
     internal fun `returns correct last id on another handshake for same crawler`() {
-        testScope.runBlockingTest {
+        testScope.runTest {
             val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenReturn(false)
 
@@ -125,7 +125,7 @@ class TestZephyrServiceImpl {
 
     @Test
     internal fun `returns correct id in response`() {
-        testScope.runBlockingTest {
+        testScope.runTest {
             val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenReturn(false)
 
@@ -157,7 +157,7 @@ class TestZephyrServiceImpl {
 
     @Test
     internal fun `calls onInfo on processed event`() {
-        testScope.runBlockingTest {
+        testScope.runTest {
             val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenReturn(true)
 
@@ -189,13 +189,13 @@ class TestZephyrServiceImpl {
                     type == "ZephyrProcessedEventData" && name.startsWith("Updated test status in zephyr because of event")
                 }
             })
-            verifyZeroInteractions(onErrorMock)
+            verifyNoInteractions(onErrorMock)
         }
     }
 
     @Test
     internal fun `calls onError on exception thrown`() {
-        testScope.runBlockingTest {
+        testScope.runTest {
             val eventData = ProviderEventResponse.newBuilder().setEventId(EventUtils.toEventID("123")).build()
             whenever(processorMock.onEvent(same(eventData))).thenThrow(IllegalStateException::class.java)
 
@@ -223,7 +223,7 @@ class TestZephyrServiceImpl {
                 verifyNoMoreInteractions()
             }
             verify(onErrorMock).invoke(same(eventData), isA<IllegalStateException>())
-            verifyZeroInteractions(onInfoMock)
+            verifyNoInteractions(onInfoMock)
         }
     }
 }
