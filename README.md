@@ -255,6 +255,15 @@ spec:
   By default it has the same value as **baseUrl**.</br>
   **NOTE: the _testExecutionMode UPDATE_LAST_ is not support by Zephyr Scale Cloud**
 
+### Changed
+
++ Dependencies update:
+  + BOM (3.0.0 -> 4.4.0)
+  + Kotlin (1.5.32 -> 1.6.21)
+  + th2 common (3.39.2 -> 3.44.1)
+  + JIRA rest Java client (5.2.2 -> 5.2.6)
+  + Ktor (1.6.5 -> 1.6.8)
+
 ## v0.2.0
 
 ### Added
