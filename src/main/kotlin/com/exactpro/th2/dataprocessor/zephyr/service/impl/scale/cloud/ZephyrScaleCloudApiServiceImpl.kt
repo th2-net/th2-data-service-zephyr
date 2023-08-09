@@ -74,7 +74,7 @@ class ZephyrScaleCloudApiServiceImpl(
     }
 
     suspend fun getFolder(project: Project, parent: Folder?, name: String): Folder? {
-        return find(
+        return findAll<Folder>(
             urlPath = "folders",
             params = mapOf(
                 "projectKey" to project.key,
@@ -82,7 +82,7 @@ class ZephyrScaleCloudApiServiceImpl(
             ),
         ) { folder ->
             folder.name == name && folder.parentId == parent?.id
-        }
+        }.firstOrNull()
     }
 
     suspend fun createFolder(project: Project, parent: BaseFolder?, name: String): BaseFolder {
@@ -100,7 +100,7 @@ class ZephyrScaleCloudApiServiceImpl(
     override suspend fun getCycle(project: Project, version: Version, folder: BaseFolder?, name: String): Cycle? {
         LOGGER.trace { "Getting cycle for project ${project.key} with version ${version.name}, folder ${folder?.name} and name $name" }
         val cloudFolder = folder?.toCloud()
-        return find<CloudCycle>(
+        return findAll<CloudCycle>(
             urlPath = "testcycles",
             params = buildMap {
                 put("projectKey", project.key)
@@ -109,7 +109,7 @@ class ZephyrScaleCloudApiServiceImpl(
             }
         ) { cycle ->
             cloudFolder?.let { it == cycle.folder } != false && cycle.jiraProjectVersion?.id == version.id && cycle.name == name
-        }?.toCommonModel()
+        }.maxByOrNull { it.id }?.toCommonModel()
     }
 
     override suspend fun getCycle(baseCycle: BaseCycle): Cycle {
@@ -200,29 +200,29 @@ class ZephyrScaleCloudApiServiceImpl(
         return results
     }
 
-    private suspend inline fun <reified T : Any> find(
+    private suspend inline fun <reified T : Any> findAll(
         urlPath: String,
         params: Map<String, String>,
         match: (T) -> Boolean
-    ): T? {
+    ): List<T> {
         var result: SearchResult<T> = client.get("$baseApiUrl/$urlPath") { params.forEach(this::parameter) }
         if (result.values.isEmpty()) {
-            return null
+            return emptyList()
         }
 
-        do {
-            for (value in result.values) {
-                if (match(value)) {
-                    return value
+        return buildList {
+            do {
+                for (value in result.values) {
+                    if (match(value)) {
+                        add(value)
+                    }
                 }
-            }
-            if (result.isLast) {
-                break
-            }
-            result = client.get(result.next ?: error("result $result must contain the link to next page but does not"))
-        } while (true)
-
-        return null
+                if (result.isLast) {
+                    break
+                }
+                result = client.get(result.next ?: error("result $result must contain the link to next page but does not"))
+            } while (true)
+        }
     }
 
     companion object {
