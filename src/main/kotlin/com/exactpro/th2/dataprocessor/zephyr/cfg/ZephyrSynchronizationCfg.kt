@@ -42,7 +42,7 @@ class ZephyrSynchronizationCfg(
 }
 
 enum class ZephyrType {
-    SQUAD, SCALE_SERVER,
+    SQUAD, SCALE_SERVER, SCALE_CLOUD
 }
 
 class DataServiceCfg(
@@ -63,7 +63,8 @@ class ConnectionCfg(
     val name: String = DEFAULT_NAME,
     val baseUrl: String,
     val jira: Credentials,
-    val zephyr: Credentials = jira
+    val zephyr: Credentials = jira,
+    val zephyrUrl: String = baseUrl,
 ) {
     companion object {
         const val DEFAULT_NAME = "DefaultConnection"

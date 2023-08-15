@@ -18,6 +18,7 @@ package com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.server
 
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.ZephyrScaleApiService
@@ -89,7 +90,7 @@ class ZephyrScaleServerApiService(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        executedBy: String?
+        accountInfo: AccountInfo?
     ) {
         LOGGER.trace { "Updating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
 
@@ -101,7 +102,7 @@ class ZephyrScaleServerApiService(
                 status = status.name,
                 version = version.name,
                 comment = comment,
-                executedBy = executedBy,
+                executedBy = accountInfo?.key,
                 assignedTo = lastExecution.assignedTo,
                 environment = lastExecution.environment
             )
@@ -117,7 +118,7 @@ class ZephyrScaleServerApiService(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        executedBy: String?
+        accountInfo: AccountInfo?
     ) {
         LOGGER.trace { "Creating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
         val result = client.post<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
@@ -126,7 +127,7 @@ class ZephyrScaleServerApiService(
                 status = status.name,
                 version = version.name,
                 comment = comment,
-                executedBy = executedBy,
+                executedBy = accountInfo?.key,
             )
         }
         LOGGER.trace { "Execution id: ${result.id}" }

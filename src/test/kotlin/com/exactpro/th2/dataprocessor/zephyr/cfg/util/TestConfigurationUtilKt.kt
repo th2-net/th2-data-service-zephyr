@@ -21,7 +21,9 @@ import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ConnectionCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.DataServiceCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
+import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrSynchronizationCfg
+import com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -115,6 +117,32 @@ class TestConfigurationUtilKt {
         val errors = cfg.validate()
         assertEquals(
             listOf("Synchronization parameters with destination B does not have matched connection. Known connections: A, C"),
+            errors
+        )
+    }
+
+    @Test
+    fun `reports error for sync parameters with unsupported execution mode`() {
+        val cfg = ZephyrSynchronizationCfg(
+            DataServiceCfg("test", "1"),
+            listOf(
+                ConnectionCfg("A", "http://test.com", BaseAuth("user", "pwd")),
+            ),
+            listOf(
+                EventProcessorCfg(
+                    ".*", "A", statusMapping = mapOf(
+                        EventStatus.SUCCESS to "PASS",
+                        EventStatus.FAILED to "WIP",
+                    ),
+                    testExecutionMode = TestExecutionMode.UPDATE_LAST,
+                ),
+            ),
+            zephyrType = ZephyrType.SCALE_CLOUD,
+        )
+
+        val errors = cfg.validate()
+        assertEquals(
+            listOf("Synchronization parameters with destination A have unsupported execution mode UPDATE_LAST for zephyr SCALE_CLOUD"),
             errors
         )
     }

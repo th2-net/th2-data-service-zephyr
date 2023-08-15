@@ -33,36 +33,38 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionSt
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.lw.grpc.EventResponse
-import com.nhaarman.mockitokotlin2.any
-import com.nhaarman.mockitokotlin2.argThat
-import com.nhaarman.mockitokotlin2.doAnswer
-import com.nhaarman.mockitokotlin2.doReturn
-import com.nhaarman.mockitokotlin2.eq
-import com.nhaarman.mockitokotlin2.inOrder
-import com.nhaarman.mockitokotlin2.isNull
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.same
-import com.nhaarman.mockitokotlin2.whenever
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestCoroutineScope
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.isNull
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.same
+import org.mockito.kotlin.whenever
 import java.time.Instant
 
 @ExperimentalCoroutinesApi
 internal class TestZephyrScaleEventProcessorImpl {
 
+    private val accountInfo = AccountInfo("test", "test_key", "test_account", "test display")
     private val jira = mock<JiraApiService> {
         onBlocking { issueByKey(argThat { startsWith("TEST-") }) }.then {
             val key = it.arguments[0] as String
             Issue(1, key, "TEST")
         }
-        onBlocking { accountInfo() } doReturn AccountInfo("test", "test_key", "test display")
+        onBlocking { accountInfo() } doReturn accountInfo
     }
     private val zephyr = mock<ZephyrScaleApiService> {}
     private val dataProvider = mock<AsyncDataProviderService> { }
@@ -97,7 +99,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                 TestCase(1, key, project.key)
             }.whenever(zephyr).getTestCase(argThat { startsWith("TEST-") })
         }
-        TestCoroutineScope().runBlockingTest {
+        runTest {
             val root = EventResponse.newBuilder()
                 .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"1"))
                 .setEventName("Root")
@@ -151,7 +153,105 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { key == "TEST-T1234" },
                     argThat { name == statusMapping[testCaseStatus] },
                     argThat { contains(testCase.eventId.id) },
-                    eq("test_key")
+                    same(accountInfo),
+                )
+                verifyNoMoreInteractions()
+            }
+        }
+    }
+
+    @Test
+    fun `does not load same cycle again`() {
+        val version = Version(1, "1.2.3")
+        val project = Project(
+            1,
+            "TEST",
+            "TEST",
+            listOf(version)
+        )
+        runBlocking {
+            doReturn(project).whenever(jira).projectByKey(eq("TEST"))
+            doReturn(listOf(ExecutionStatus(1, "PASS"), ExecutionStatus(2, "WIP")))
+                .whenever(zephyr).getExecutionsStatuses(eq(project))
+            doAnswer {
+                val key: String = it.getArgument(0)
+                TestCase(1, key, project.key)
+            }.whenever(zephyr).getTestCase(argThat { startsWith("TEST-") })
+        }
+        runTest {
+            val root = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"1"))
+                .setEventName("Root")
+                .build()
+            val cycleEvent = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"2"))
+                .setParentEventId(root.eventId)
+                .setEventName("TestCycle | ${version.name} |${Instant.now()}")
+                .build()
+            val intermediateEvent = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"3"))
+                .setParentEventId(cycleEvent.eventId)
+                .setEventName("SomeEvent")
+                .build()
+            val testCase = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"4"))
+                .setParentEventId(intermediateEvent.eventId)
+                .setEventName("TEST_T1234")
+                .setStatus(EventStatus.SUCCESS)
+                .build()
+            val eventsById = arrayOf(root, cycleEvent, intermediateEvent, testCase).associateBy { it.eventId }
+            whenever(dataProvider.getEvent(any(), any())).then {
+                val id: EventID = it.getArgument(0)
+                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                eventsById[id]?.let { event ->
+                    observer.onNext(event)
+                    observer.onCompleted()
+                } ?: run { observer.onError(RuntimeException("Unknown id $id")) }
+            }
+            val cycle = Cycle(1, "TEST-C1", "TestCycle", version.name)
+            whenever(zephyr.getCycle(same(project), same(version), isNull(), eq("TestCycle")))
+                .thenReturn(cycle)
+
+            Assertions.assertTrue(processor.onEvent(testCase.toEvent())) { "The event for issue was not processed" }
+
+            inOrder(jira, zephyr) {
+                verify(zephyr).getTestCase(eq("TEST-T1234"))
+                verify(jira).projectByKey("TEST")
+                verify(zephyr).getExecutionsStatuses(same(project))
+                verify(zephyr).getCycle(
+                    same(project),
+                    same(version),
+                    isNull(),
+                    eq("TestCycle"),
+                )
+                verify(zephyr).updateExecution(
+                    same(project),
+                    same(version),
+                    same(cycle),
+                    argThat { key == "TEST-T1234" },
+                    argThat { name == "PASS" },
+                    argThat { contains(testCase.eventId.id) },
+                    same(accountInfo),
+                )
+                verifyNoMoreInteractions()
+            }
+
+            clearInvocations(jira, zephyr)
+
+            Assertions.assertTrue(processor.onEvent(testCase.toEvent())) { "The event for issue was not processed" }
+
+            inOrder(jira, zephyr) {
+                verify(zephyr).getTestCase(eq("TEST-T1234"))
+                verify(jira).projectByKey("TEST")
+                verify(zephyr).getExecutionsStatuses(same(project))
+                verify(zephyr).updateExecution(
+                    same(project),
+                    same(version),
+                    same(cycle),
+                    argThat { key == "TEST-T1234" },
+                    argThat { name == "PASS" },
+                    argThat { contains(testCase.eventId.id) },
+                    same(accountInfo),
                 )
                 verifyNoMoreInteractions()
             }

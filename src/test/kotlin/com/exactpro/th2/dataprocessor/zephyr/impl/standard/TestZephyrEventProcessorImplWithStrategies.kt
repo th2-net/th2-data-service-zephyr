@@ -36,17 +36,18 @@ import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategy
 import com.exactpro.th2.dataprocessor.zephyr.strategies.RelatedIssuesStrategyConfiguration
 import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
 import com.exactpro.th2.dataprovider.lw.grpc.EventResponse
-import com.nhaarman.mockitokotlin2.any
-import com.nhaarman.mockitokotlin2.argThat
-import com.nhaarman.mockitokotlin2.eq
-import com.nhaarman.mockitokotlin2.inOrder
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.same
-import com.nhaarman.mockitokotlin2.whenever
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.same
+import org.mockito.kotlin.whenever
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -101,7 +102,7 @@ class TestZephyrEventProcessorImplWithStrategies {
 
     @Test
     fun `adds executions for related issues`() {
-        TestCoroutineScope().runBlockingTest {
+        runTest {
             val root = EventResponse.newBuilder()
                 .setEventId(toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")

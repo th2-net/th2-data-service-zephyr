@@ -57,6 +57,7 @@ class LinkedIssuesStrategy(
     private inline fun <T : Any> T?.matches(condition: T.() -> Boolean): Boolean = this?.run(condition) ?: false
 }
 
+@SuppressWarnings("rawtypes")
 @AutoService(RelatedIssuesStrategyFactory::class)
 class LinkedIssuesStrategyFactory : RelatedIssuesStrategyFactory<LinkedIssuesStrategyConfiguration> {
     override val configurationClass: Class<LinkedIssuesStrategyConfiguration> = LinkedIssuesStrategyConfiguration::class.java

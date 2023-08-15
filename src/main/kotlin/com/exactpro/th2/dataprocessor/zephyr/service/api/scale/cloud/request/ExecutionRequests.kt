@@ -26,4 +26,5 @@ class CreateExecution(
     val statusName: String,
     val version: String,
     val comment: String? = null,
+    val executedById: String? = null,
 )
