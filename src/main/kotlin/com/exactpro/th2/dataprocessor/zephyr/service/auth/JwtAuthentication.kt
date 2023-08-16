@@ -24,7 +24,7 @@ import com.atlassian.jwt.core.writer.JwtClaimsBuilder
 import com.atlassian.jwt.core.writer.NimbusJwtWriterFactory
 import com.atlassian.jwt.httpclient.CanonicalHttpUriRequest
 import io.ktor.client.HttpClient
-import io.ktor.client.features.HttpClientFeature
+import io.ktor.client.plugins.HttpClientPlugin
 import io.ktor.client.request.HttpRequestPipeline
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
@@ -134,7 +134,7 @@ class JwtAuthentication internal constructor(
             check(expireWindowSeconds > 0) { "expireWindowSeconds must be a positive integer" }
         }
     }
-    companion object Feature : HttpClientFeature<Config, JwtAuthentication> {
+    companion object Feature : HttpClientPlugin<Config, JwtAuthentication> {
         private val QUERY_DELIMITERS = charArrayOf('$')
         private const val ZapiAccessKey = "zapiAccessKey"
         private val HttpHeaders.ZapiAccessKey: String

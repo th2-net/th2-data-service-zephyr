@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -15,25 +16,25 @@ sourceCompatibility = JavaVersion.VERSION_11
 targetCompatibility = JavaVersion.VERSION_11
 
 tasks.withType(KotlinCompile).configureEach {
-    kotlinOptions {
-        jvmTarget = "11"
-        freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
+        freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
     }
 }
 
 ext {
-    ktorVersion = '1.6.8'
+    ktorVersion = '2.3.3'
 }
 
 dependencies {
     // BOM with external dependencies restrictions
-    api platform('com.exactpro.th2:bom:4.4.0')
+    api platform('com.exactpro.th2:bom:4.5.0')
 
     // the library for interaction with infra API
-    implementation 'com.exactpro.th2:common:5.1.0-dev-version-5-4085018593-8adee33-SNAPSHOT'
-    implementation 'com.exactpro.th2:common-utils:1.0.0-book-and-page-4086360735-d23a5e0-SNAPSHOT'
-    implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.0-dev-version-2-4111786636-SNAPSHOT'
-    implementation 'com.exactpro.th2:processor-core:0.1.0-dev-version-1-4063691039-1761242-SNAPSHOT'
+    implementation 'com.exactpro.th2:common:5.3.2-dev'
+    implementation 'com.exactpro.th2:common-utils:2.1.1-dev'
+    implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.1-dev'
+    implementation 'com.exactpro.th2:processor-core:0.1.0-dev-version-1-5867969610-57d9334-SNAPSHOT'
 
     // Auto service
     compileOnly 'com.google.auto.service:auto-service-annotations:1.1.1'
@@ -41,7 +42,7 @@ dependencies {
 
     // JIRA
     implementation group: 'com.atlassian.jira', name: 'jira-rest-java-client-core', version: '5.2.6'
-    implementation(group: 'io.atlassian.fugue', name: 'fugue', version: '5.0.0') {
+    implementation(group: 'io.atlassian.fugue', name: 'fugue', version: '4.7.2') {
         because("It is required by JIRA rest client but for some reasons it is not in dependencies for it")
     }
     implementation('com.atlassian.jwt:jwt-core:3.3.1')
@@ -49,21 +50,22 @@ dependencies {
 
     // Ktor
     implementation("io.ktor:ktor-client:$ktorVersion")
+    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-client-java:$ktorVersion") {
         because("the CIO (coroutine base engine) has some issues with SSL")
     }
     implementation("io.ktor:ktor-client-auth:$ktorVersion")
     implementation("io.ktor:ktor-client-logging:$ktorVersion")
-    implementation("io.ktor:ktor-client-jackson:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
 
     implementation("org.apache.commons:commons-collections4")
 
     // Idiomatic logging for Kotlin. Wraps slf4j
-    implementation 'io.github.microutils:kotlin-logging:3.0.0'
+    implementation 'io.github.microutils:kotlin-logging:3.0.5'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.mockito.kotlin:mockito-kotlin:5.0.0'
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 }
 
 test {

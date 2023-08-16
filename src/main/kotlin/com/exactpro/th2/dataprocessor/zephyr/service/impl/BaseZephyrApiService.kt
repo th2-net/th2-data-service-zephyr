@@ -21,9 +21,9 @@ import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprocessor.zephyr.service.auth.AuthenticateWith
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
-import io.ktor.client.features.json.JacksonSerializer
-import io.ktor.client.features.json.Json
-import io.ktor.client.features.logging.Logging
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.serialization.jackson.jackson
 import mu.KotlinLogging
 
 abstract class BaseZephyrApiService(
@@ -35,10 +35,12 @@ abstract class BaseZephyrApiService(
     protected val baseUrl: String = url.run { if (endsWith('/')) trimEnd('/') else this }
     protected val client = HttpClient(Java) {
         AuthenticateWith(credentials, baseUrl)
-        Json {
-            serializer = JacksonSerializer()
+        install(ContentNegotiation) {
+            jackson {
+                setDefaultPrettyPrinter(null)
+            }
         }
-        Logging {
+        install(Logging) {
             level = httpLogging.level
         }
     }

@@ -43,10 +43,12 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.JobType
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.request.TestRequest
 import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.ZephyrJob
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
+import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.Url
 import io.ktor.http.contentType
@@ -63,10 +65,10 @@ class ZephyrApiServiceImpl(
 
     override suspend fun getCycle(cycleName: String, project: Project, version: Version): Cycle? {
         LOGGER.trace { "Getting cycle for with name '$cycleName'" }
-        val cycles = client.get<CyclesById>("$baseApiUrl/cycle") {
+        val cycles = client.get("$baseApiUrl/cycle") {
             parameter(PROJECT_ID_PARAMETER, project.id.toString())
             parameter(VERSION_ID_PARAMETER, version.id.toString())
-        }.cycles
+        }.body<CyclesById>().cycles
         LOGGER.debug { "Found ${cycles.size} cycle(s) for project ${project.key} and version $version" }
         return cycles
             .asSequence()
@@ -77,92 +79,92 @@ class ZephyrApiServiceImpl(
     override suspend fun getFolder(cycle: Cycle, folderName: String): Folder? {
         require(folderName.isNotEmpty()) { "Folder name must not be empty" }
         LOGGER.trace { "Getting folder $folderName for project ${cycle.projectId}, version ${cycle.versionId} and cycle ${cycle.name}" }
-        val folders = client.get<List<Folder>>("$baseApiUrl/cycle/${cycle.id}/folders") {
+        val folders = client.get("$baseApiUrl/cycle/${cycle.id}/folders") {
             parameter(PROJECT_ID_PARAMETER, cycle.projectId.toString())
             parameter(VERSION_ID_PARAMETER, cycle.versionId.toString())
-        }
+        }.body<List<Folder>>()
         LOGGER.debug { "Found ${folders.size} folder(s) for cycle ${cycle.name} in project ${cycle.projectId} and version ${cycle.versionId}" }
         return folders.find { it.name == folderName }
     }
 
     override suspend fun createCycle(cycleName: String, project: Project, version: Version): Cycle {
         LOGGER.trace { "Creating cycle $cycleName for project ${project.key} and version $version" }
-        val response = client.post<CycleCreateResponse>(Url("$baseApiUrl/cycle")) {
+        val response = client.post(Url("$baseApiUrl/cycle")) {
             contentType(ContentType.Application.Json)
-            body = BaseCycle(
+            setBody(BaseCycle(
                 name = cycleName,
                 projectId = project.id,
                 versionId = version.id
-            )
-        }
+            ))
+        }.body<CycleCreateResponse>()
         LOGGER.debug { "Folder with id ${response.id} created" }
-        return client.get(Url("$baseApiUrl/cycle/${response.id}"))
+        return client.get(Url("$baseApiUrl/cycle/${response.id}")).body()
     }
 
     override suspend fun getExecutionStatuses(): List<ExecutionStatus> {
         LOGGER.trace { "Getting execution statuses" }
-        return client.get(Url("$baseApiUrl/util/testExecutionStatus"))
+        return client.get(Url("$baseApiUrl/util/testExecutionStatus")).body()
     }
 
     override suspend fun createExecution(request: ExecutionRequest): ExecutionResponse {
         LOGGER.trace { "Creating execution $request" }
         return client.post(Url("$baseApiUrl/execution")) {
             contentType(ContentType.Application.Json)
-            body = request
-        }
+            setBody(request)
+        }.body()
     }
 
     override suspend fun updateExecution(update: ExecutionUpdate): ExecutionUpdateResponse {
         LOGGER.trace { "Updating execution $update" }
         return client.put(Url("$baseApiUrl/execution/${update.id}/execute")) {
             contentType(ContentType.Application.Json)
-            body = with(update) {
+            with(update) {
                 ExecutionUpdateRequest(
                     status = status?.id,
                     comment = comment,
                     defects = defects
                 )
-            }
-        }
+            }.also(this::setBody)
+        }.body()
     }
 
     override suspend fun addTestToCycle(cycle: Cycle, test: Issue): ZephyrJob {
         LOGGER.trace { "Adding test $test to cycle ${cycle.name}" }
-        val token = client.post<JobToken>(Url("$baseApiUrl/execution/addTestsToCycle")) {
+        val token = client.post(Url("$baseApiUrl/execution/addTestsToCycle")) {
             contentType(ContentType.Application.Json)
-            body = TestRequest(
+            setBody(TestRequest(
                 issues = listOf(test.key),
                 projectId = cycle.projectId,
                 versionId = cycle.versionId,
                 method = TestRequest.BY_KEYS,
                 cycleId = cycle.id,
-            )
-        }
+            ))
+        }.body<JobToken>()
         return ZephyrJob(token, JobType.ADD_TEST_TO_CYCLE)
     }
 
     override suspend fun addTestToFolder(folder: Folder, test: Issue): ZephyrJob {
         LOGGER.trace { "Adding test $test to folder ${folder.name}" }
-        val token = client.post<JobToken>(Url("$baseApiUrl/execution/addTestsToCycle")) {
+        val token = client.post(Url("$baseApiUrl/execution/addTestsToCycle")) {
             contentType(ContentType.Application.Json)
-            body = TestRequest(
+            setBody(TestRequest(
                 issues = listOf(test.key),
                 projectId = folder.projectId,
                 versionId = folder.versionId,
                 method = TestRequest.BY_KEYS,
                 cycleId = folder.cycleId,
                 folderId = folder.id,
-            )
-        }
+            ))
+        }.body<JobToken>()
         return ZephyrJob(token, JobType.ADD_TEST_TO_CYCLE)
     }
 
     override suspend fun awaitJobDone(job: ZephyrJob) {
         LOGGER.trace { "Awaiting job ${job.token} with type $job.type is done" }
         while (coroutineContext.isActive) {
-            val result = client.get<JobResult>("$baseApiUrl/execution/jobProgress/${job.token.jobProgressToken}") {
+            val result = client.get("$baseApiUrl/execution/jobProgress/${job.token.jobProgressToken}") {
                 parameter(JOB_TYPE_PARAMETER, job.type.value)
-            }
+            }.body<JobResult>()
             // TODO:
             //  the response contains information if the job done successfully or not.
             //  But it is in HTML format and probably might change from request to request
@@ -178,7 +180,7 @@ class ZephyrApiServiceImpl(
 
     override suspend fun findExecution(project: Project, version: Version, cycle: Cycle, folder: Folder?, test: Issue): Execution? {
         LOGGER.trace { "Searching for execution of issue ${test.key} for version $version in cycle ${cycle.name}${folder?.run { " folder $name" } ?: ""}" }
-        val response = client.get<ExecutionSearchResponse>("$baseApiUrl/zql/executeSearch") {
+        val response = client.get("$baseApiUrl/zql/executeSearch") {
                 val query = buildString {
                     append("""project = "${project.name}" AND cycleName = "${cycle.name}" AND issue = "${test.key}" AND fixVersion = ${version.name}""")
                     if (folder != null) {
@@ -188,7 +190,7 @@ class ZephyrApiServiceImpl(
                     }
                 }
                 parameter(ZQL_QUERY_PARAMETER, query)
-        }
+        }.body<ExecutionSearchResponse>()
         val executions: List<Execution> = response.executions
         LOGGER.debug { "Found ${executions.size} execution(s)" }
         check(executions.size < 2) {
@@ -202,15 +204,15 @@ class ZephyrApiServiceImpl(
     override suspend fun createFolder(cycle: Cycle, folderName: String): Folder {
         require(folderName.isNotBlank()) { "folderName cannot be blank" }
         LOGGER.trace { "Creating folder $folderName in cycle ${cycle.name}" }
-        return client.post<FolderCreateResponse>(Url("$baseApiUrl/folder/create")) {
+        return client.post(Url("$baseApiUrl/folder/create")) {
             contentType(ContentType.Application.Json)
-            body = BaseFolder(
+            setBody(BaseFolder(
                 name = folderName,
                 projectId = cycle.projectId,
                 versionId = cycle.versionId,
                 cycleId = cycle.id
-            )
-        }.toFolder(folderName)
+            ))
+        }.body<FolderCreateResponse>().toFolder(folderName)
     }
 
     companion object {

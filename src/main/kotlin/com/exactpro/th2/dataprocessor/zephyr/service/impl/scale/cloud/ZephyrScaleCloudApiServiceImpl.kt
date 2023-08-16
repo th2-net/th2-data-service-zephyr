@@ -36,9 +36,11 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.Cycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionStatus
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import mu.KotlinLogging
@@ -67,8 +69,8 @@ class ZephyrScaleCloudApiServiceImpl(
     override suspend fun getTestCase(key: String): TestCase {
         LOGGER.trace { "Getting test case with key $key" }
         require(key.isNotBlank()) { "key cannot be blank" }
-        return client.get<CloudTestCase>("$baseApiUrl/testcases/$key").run {
-            val project = client.get<ZephyrProject>(project.self)
+        return client.get("$baseApiUrl/testcases/$key").body<CloudTestCase>().run {
+            val project = client.get(project.self).body<ZephyrProject>()
             toCommonModel(project.key)
         }
     }
@@ -88,13 +90,13 @@ class ZephyrScaleCloudApiServiceImpl(
     suspend fun createFolder(project: Project, parent: BaseFolder?, name: String): BaseFolder {
         return client.post("$baseApiUrl/folders") {
             contentType(ContentType.Application.Json)
-            body = CreateFolder(
+            setBody(CreateFolder(
                 parentId = parent?.id,
                 name = name,
                 projectKey = project.key,
                 folderType = CreateFolder.Type.TEST_CYCLE,
-            )
-        }
+            ))
+        }.body()
     }
 
     override suspend fun getCycle(project: Project, version: Version, folder: BaseFolder?, name: String): Cycle? {
@@ -114,20 +116,20 @@ class ZephyrScaleCloudApiServiceImpl(
 
     override suspend fun getCycle(baseCycle: BaseCycle): Cycle {
         LOGGER.trace { "Getting cycle for key ${baseCycle.key}" }
-        val cycle = client.get<CloudCycle>("$baseApiUrl/testcycles/${baseCycle.key}")
+        val cycle = client.get("$baseApiUrl/testcycles/${baseCycle.key}").body<CloudCycle>()
         return cycle.toCommonModel()
     }
 
     suspend fun createCycle(project: Project, version: Version, folder: BaseFolder?, name: String): BaseCycle {
-        return client.post<CloudBaseCycle>("$baseApiUrl/testcycles") {
+        return client.post("$baseApiUrl/testcycles") {
             contentType(ContentType.Application.Json)
-            body = CreateCycle(
+            setBody(CreateCycle(
                 projectKey = project.key,
                 name = name,
                 jiraProjectVersion = version.id,
                 folderId = folder?.id,
-            )
-        }.toCommonModule()
+            ))
+        }.body<CloudBaseCycle>().toCommonModule()
     }
 
     override suspend fun updateExecution(
@@ -155,7 +157,7 @@ class ZephyrScaleCloudApiServiceImpl(
             "test case ${testCase.key}, status $status, comment: $comment, accountInfo: $accountInfo" }
         return client.post("$baseApiUrl/testexecutions") {
             contentType(ContentType.Application.Json)
-            body = CreateExecution(
+            setBody(CreateExecution(
                 projectKey = project.key,
                 testCaseKey = testCase.key,
                 testCycleKey = cycle.key,
@@ -163,8 +165,8 @@ class ZephyrScaleCloudApiServiceImpl(
                 version = version.name,
                 comment = comment,
                 executedById = accountInfo?.accountId,
-            )
-        }
+            ))
+        }.body()
     }
 
     suspend fun findExecutions(project: Project, cycle: CloudBaseCycle, issue: Issue): List<Execution> {
@@ -182,7 +184,7 @@ class ZephyrScaleCloudApiServiceImpl(
         urlPath: String,
         params: Map<String, String>,
     ): List<T> {
-        var result: SearchResult<T> = client.get("$baseApiUrl/$urlPath") { params.forEach(this::parameter) }
+        var result: SearchResult<T> = client.get("$baseApiUrl/$urlPath") { params.forEach(this::parameter) }.body()
         if (result.values.isEmpty()) {
             return emptyList()
         }
@@ -194,7 +196,7 @@ class ZephyrScaleCloudApiServiceImpl(
             if (result.isLast) {
                 break
             }
-            result = client.get(result.next ?: error("result $result must contain the link to next page but does not"))
+            result = client.get(result.next ?: error("result $result must contain the link to next page but does not")).body()
         } while (true)
 
         return results
@@ -205,7 +207,7 @@ class ZephyrScaleCloudApiServiceImpl(
         params: Map<String, String>,
         match: (T) -> Boolean
     ): List<T> {
-        var result: SearchResult<T> = client.get("$baseApiUrl/$urlPath") { params.forEach(this::parameter) }
+        var result: SearchResult<T> = client.get("$baseApiUrl/$urlPath") { params.forEach(this::parameter) }.body()
         if (result.values.isEmpty()) {
             return emptyList()
         }
@@ -220,7 +222,7 @@ class ZephyrScaleCloudApiServiceImpl(
                 if (result.isLast) {
                     break
                 }
-                result = client.get(result.next ?: error("result $result must contain the link to next page but does not"))
+                result = client.get(result.next ?: error("result $result must contain the link to next page but does not")).body()
             } while (true)
         }
     }

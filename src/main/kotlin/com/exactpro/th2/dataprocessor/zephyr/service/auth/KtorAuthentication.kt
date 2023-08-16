@@ -16,16 +16,16 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.service.auth
 
-import com.exactpro.th2.dataprocessor.zephyr.cfg.BearerAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
+import com.exactpro.th2.dataprocessor.zephyr.cfg.BearerAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.JwtAuth
 import io.ktor.client.HttpClientConfig
-import io.ktor.client.features.auth.Auth
-import io.ktor.client.features.auth.providers.BasicAuthCredentials
-import io.ktor.client.features.auth.providers.BearerTokens
-import io.ktor.client.features.auth.providers.basic
-import io.ktor.client.features.auth.providers.bearer
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.providers.BasicAuthCredentials
+import io.ktor.client.plugins.auth.providers.BearerTokens
+import io.ktor.client.plugins.auth.providers.basic
+import io.ktor.client.plugins.auth.providers.bearer
 import java.net.URI
 
 @Suppress("FunctionName")

@@ -18,8 +18,8 @@ package com.exactpro.th2.dataprocessor.zephyr.service.impl
 
 import com.atlassian.jira.rest.client.api.domain.IssueLinkType
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
-import com.exactpro.th2.dataprocessor.zephyr.cfg.BearerAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.BaseAuth
+import com.exactpro.th2.dataprocessor.zephyr.cfg.BearerAuth
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
 import com.exactpro.th2.dataprocessor.zephyr.cfg.JwtAuth
@@ -35,14 +35,17 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.auth.AuthenticateWith
 import io.atlassian.util.concurrent.Promise
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.java.Java
-import io.ktor.client.features.json.JacksonSerializer
-import io.ktor.client.features.json.Json
-import io.ktor.client.features.logging.Logging
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
+import io.ktor.http.encodedPath
+import io.ktor.http.path
 import io.ktor.http.takeFrom
+import io.ktor.serialization.jackson.jackson
 import kotlinx.coroutines.suspendCancellableCoroutine
 import mu.KotlinLogging
 import java.net.URI
@@ -69,10 +72,12 @@ class JiraApiServiceImpl(
     }
     private val httpClient = HttpClient(Java) {
         AuthenticateWith(auth, uri)
-        Json {
-            serializer = JacksonSerializer()
+        install(ContentNegotiation) {
+            jackson {
+                setDefaultPrettyPrinter(null)
+            }
         }
-        Logging {
+        install(Logging) {
             level = httpLogging.level
         }
     }
@@ -81,7 +86,7 @@ class JiraApiServiceImpl(
         LOGGER.trace { "Getting account info for current user" }
         return httpClient.get(
             URLBuilder().takeFrom(uri).apply { path(encodedPath, REST_API_PREFIX, "myself") }.build()
-        )
+        ).body()
     }
 
     override suspend fun projectByKey(projectKey: String): Project {

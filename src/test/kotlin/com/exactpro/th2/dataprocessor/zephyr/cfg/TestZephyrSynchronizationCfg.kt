@@ -21,7 +21,7 @@ import com.exactpro.th2.dataprocessor.zephyr.impl.standard.RelatedIssuesStrategi
 import com.exactpro.th2.dataprocessor.zephyr.strategies.linked.LinkedIssuesStrategyConfiguration
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import io.ktor.client.features.logging.LogLevel
+import io.ktor.client.plugins.logging.LogLevel
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 

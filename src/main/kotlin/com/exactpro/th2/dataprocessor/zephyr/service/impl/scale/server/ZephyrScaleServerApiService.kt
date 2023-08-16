@@ -32,10 +32,12 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.Ex
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.ExecutionPreservedFields
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.server.request.UpdateExecution
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.BaseZephyrApiService
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
+import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import mu.KotlinLogging
@@ -47,13 +49,13 @@ class ZephyrScaleServerApiService(
     httpLogging: HttpLoggingConfiguration
 ) : BaseZephyrApiService(url, credentials, httpLogging, "rest/atm/1.0"), ZephyrScaleApiService {
     override suspend fun getExecutionsStatuses(project: Project): List<ExecutionStatus> {
-        return client.get("$baseUrl/rest/tests/1.0/project/${project.id}/testresultstatus")
+        return client.get("$baseUrl/rest/tests/1.0/project/${project.id}/testresultstatus").body()
     }
 
     override suspend fun getTestCase(key: String): TestCase {
         require(key.isNotBlank()) { "test case key cannot be blank" }
         LOGGER.trace { "Getting test case $key" }
-        return client.get("$baseApiUrl/testcase/$key")
+        return client.get("$baseApiUrl/testcase/$key").body()
     }
 
     override suspend fun getCycle(project: Project, version: Version, folder: BaseFolder?, name: String): Cycle? {
@@ -73,13 +75,14 @@ class ZephyrScaleServerApiService(
 
     override suspend fun getCycle(baseCycle: BaseCycle): Cycle {
         LOGGER.trace { "Getting cycle by key ${baseCycle.key}" }
-        return client.get<ServerCycle>("$baseApiUrl/testrun/${baseCycle.key}") {
+        return client.get("$baseApiUrl/testrun/${baseCycle.key}") {
             parameter("fields", "key,name,version")
-        }.toCommonModel()
+        }.body<ServerCycle>().toCommonModel()
     }
 
     private suspend fun getLastExecution(testRunKey: String): ExecutionPreservedFields = client
-        .get<List<ExecutionPreservedFields>>("$baseApiUrl/testrun/$testRunKey/testresults")
+        .get("$baseApiUrl/testrun/$testRunKey/testresults")
+        .body<List<ExecutionPreservedFields>>()
         .maxByOrNull { it.id }
         ?: throw NoSuchElementException("Test Results for Test Run ($testRunKey) not found.")
 
@@ -96,17 +99,17 @@ class ZephyrScaleServerApiService(
 
         val lastExecution = getLastExecution(cycle.key)
 
-        val result = client.put<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
+        val result = client.put("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
             contentType(ContentType.Application.Json)
-            body = UpdateExecution(
+            setBody(UpdateExecution(
                 status = status.name,
                 version = version.name,
                 comment = comment,
                 executedBy = accountInfo?.key,
                 assignedTo = lastExecution.assignedTo,
                 environment = lastExecution.environment
-            )
-        }
+            ))
+        }.body<ExecutionCreatedResponse>()
 
         LOGGER.trace { "Execution id: ${result.id}" }
     }
@@ -121,15 +124,15 @@ class ZephyrScaleServerApiService(
         accountInfo: AccountInfo?
     ) {
         LOGGER.trace { "Creating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
-        val result = client.post<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
+        val result = client.post("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
             contentType(ContentType.Application.Json)
-            body = CreateExecution(
+            setBody(CreateExecution(
                 status = status.name,
                 version = version.name,
                 comment = comment,
                 executedBy = accountInfo?.key,
-            )
-        }
+            ))
+        }.body<ExecutionCreatedResponse>()
         LOGGER.trace { "Execution id: ${result.id}" }
     }
 
@@ -140,7 +143,7 @@ class ZephyrScaleServerApiService(
             parameter("fields", "key,name,version,folder")
             parameter("maxResults", masResults)
             parameter("startAt", startAt)
-        }
+        }.body()
     }
 
     companion object {
