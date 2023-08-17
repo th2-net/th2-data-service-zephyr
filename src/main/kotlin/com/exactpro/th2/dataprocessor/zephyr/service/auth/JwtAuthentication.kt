@@ -154,13 +154,13 @@ class JwtAuthentication internal constructor(
             }
         }
 
-        override fun install(feature: JwtAuthentication, scope: HttpClient) {
+        override fun install(plugin: JwtAuthentication, scope: HttpClient) {
             scope.requestPipeline.intercept(HttpRequestPipeline.State) {
                 val requestPath = context.url.buildString()
-                val jwt = feature.encodeJwt(context.method, requestPath)
+                val jwt = plugin.encodeJwt(context.method, requestPath)
                 with(context) {
                     header(HttpHeaders.Authorization, JwtConstants.HttpRequests.JWT_AUTH_HEADER_PREFIX + jwt)
-                    header(HttpHeaders.ZapiAccessKey, feature.accessKey)
+                    header(HttpHeaders.ZapiAccessKey, plugin.accessKey)
                 }
             }
         }
