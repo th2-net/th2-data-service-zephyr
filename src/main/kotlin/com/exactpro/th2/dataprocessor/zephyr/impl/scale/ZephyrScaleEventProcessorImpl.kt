@@ -123,7 +123,10 @@ class ZephyrScaleEventProcessorImpl(
         }
         action(zephyr,
             project, version, cycle, testCase, executionStatus,
-            "Updated by th2 because of event with id: ${event.id.toJson()}",
+            """
+              |Updated by th2 because of event with id: ${event.id.toJson()}
+              |Event: ${event.name}
+            """.trimMargin(),
             accountInfoByConnection[configuration.destination],
         )
     }
