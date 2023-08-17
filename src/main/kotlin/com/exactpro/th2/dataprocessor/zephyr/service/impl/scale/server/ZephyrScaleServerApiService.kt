@@ -90,7 +90,8 @@ class ZephyrScaleServerApiService(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        accountInfo: AccountInfo?
+        accountInfo: AccountInfo?,
+        customFields: Map<String, Any>,
     ) {
         LOGGER.trace { "Updating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
 
@@ -104,7 +105,8 @@ class ZephyrScaleServerApiService(
                 comment = comment,
                 executedBy = accountInfo?.key,
                 assignedTo = lastExecution.assignedTo,
-                environment = lastExecution.environment
+                environment = lastExecution.environment,
+                customFields = customFields.takeIf(Map<*, *>::isEmpty),
             )
         }
 
@@ -118,7 +120,8 @@ class ZephyrScaleServerApiService(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        accountInfo: AccountInfo?
+        accountInfo: AccountInfo?,
+        customFields: Map<String, Any>,
     ) {
         LOGGER.trace { "Creating execution for test case ${testCase.key} with status ${status.name} in cycle ${cycle.key}" }
         val result = client.post<ExecutionCreatedResponse>("${baseApiUrl}/testrun/${cycle.key}/testcase/${testCase.key}/testresult") {
@@ -128,6 +131,7 @@ class ZephyrScaleServerApiService(
                 version = version.name,
                 comment = comment,
                 executedBy = accountInfo?.key,
+                customFields = customFields.takeIf(Map<*, *>::isEmpty),
             )
         }
         LOGGER.trace { "Execution id: ${result.id}" }

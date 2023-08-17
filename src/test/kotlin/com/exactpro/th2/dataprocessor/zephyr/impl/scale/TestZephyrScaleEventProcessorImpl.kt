@@ -35,7 +35,6 @@ import com.exactpro.th2.dataprovider.grpc.EventResponse
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -154,6 +153,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == statusMapping[testCaseStatus] },
                     argThat { contains(testCase.eventId.id) },
                     same(accountInfo),
+                    eq(emptyMap()),
                 )
                 verifyNoMoreInteractions()
             }
@@ -232,6 +232,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == "PASS" },
                     argThat { contains(testCase.eventId.id) },
                     same(accountInfo),
+                    eq(emptyMap()),
                 )
                 verifyNoMoreInteractions()
             }
@@ -252,6 +253,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == "PASS" },
                     argThat { contains(testCase.eventId.id) },
                     same(accountInfo),
+                    eq(emptyMap()),
                 )
                 verifyNoMoreInteractions()
             }

@@ -137,7 +137,8 @@ class ZephyrScaleCloudApiServiceImpl(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        accountInfo: AccountInfo?
+        accountInfo: AccountInfo?,
+        customFields: Map<String, Any>,
     ) {
         throw UnsupportedOperationException("the update execution is not supported by Zephyr Scale Cloud")
     }
@@ -149,7 +150,8 @@ class ZephyrScaleCloudApiServiceImpl(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        accountInfo: AccountInfo?
+        accountInfo: AccountInfo?,
+        customFields: Map<String, Any>,
     ) {
         LOGGER.trace { "Creating execution: project ${project.key} with version ${version.name}, cycle ${cycle.key}, " +
             "test case ${testCase.key}, status $status, comment: $comment, accountInfo: $accountInfo" }
@@ -163,6 +165,7 @@ class ZephyrScaleCloudApiServiceImpl(
                 version = version.name,
                 comment = comment,
                 executedById = accountInfo?.accountId,
+                customFields = customFields.takeIf(Map<*, *>::isEmpty),
             )
         }
     }

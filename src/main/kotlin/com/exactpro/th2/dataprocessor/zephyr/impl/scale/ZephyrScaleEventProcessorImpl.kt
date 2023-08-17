@@ -20,6 +20,9 @@ import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.CustomValueExtractor
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.ExtractionContext
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.createCustomValueExtractors
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
@@ -57,6 +60,12 @@ class ZephyrScaleEventProcessorImpl(
         connections.mapValues { (_, holder) ->
             holder.jira.accountInfo()
         }
+    }
+
+    private class CustomFields(val mapping: Map<String, CustomValueExtractor>)
+
+    private val customFieldExtractors: Map<String, CustomFields> = configurations.associate {
+        it.destination to CustomFields(createCustomValueExtractors(it.customFields))
     }
 
     private data class CycleCacheKey(
@@ -108,16 +117,45 @@ class ZephyrScaleEventProcessorImpl(
     ) {
         val action: suspend (
             ZephyrScaleApiService,
-            Project, Version, BaseCycle, TestCase, ExecutionStatus, comment: String?, accountInfo: AccountInfo?
+            Project,
+            Version,
+            BaseCycle,
+            TestCase,
+            ExecutionStatus,
+            comment: String?,
+            accountInfo: AccountInfo?,
+            customFields: Map<String, Any>,
         ) -> Unit = when (configuration.testExecutionMode) {
             TestExecutionMode.UPDATE_LAST -> ZephyrScaleApiService::updateExecution
             TestExecutionMode.CREATE_NEW -> ZephyrScaleApiService::createExecution
         }
+        val customFields: Map<String, Any> = collectCustomFields(event, version)
         action(zephyr,
             project, version, cycle, testCase, executionStatus,
             "Updated by th2 because of event with id: ${event.eventId.id}",
             accountInfoByConnection[configuration.destination],
+            customFields,
         )
+    }
+
+    private fun EventProcessorContext<ZephyrScaleApiService>.collectCustomFields(
+        event: EventResponse,
+        version: Version,
+    ): Map<String, Any> {
+        val extractors: CustomFields = customFieldExtractors.getValue(configuration.destination)
+        val customFields: Map<String, Any> = if (extractors.mapping.isEmpty()) {
+            emptyMap()
+        } else {
+            val ctx = ExtractionContext(
+                event = event,
+                accountInfo = accountInfoByConnection.getValue(configuration.destination),
+                version = version,
+            )
+            extractors.mapping.mapValues { (_, extractor) ->
+                extractor.extract(ctx)
+            }
+        }
+        return customFields
     }
 
     private suspend fun EventProcessorContext<ZephyrScaleApiService>.findCycle(

@@ -42,6 +42,7 @@ interface ZephyrScaleApiService : AutoCloseable {
         status: ExecutionStatus,
         comment: String? = null,
         accountInfo: AccountInfo? = null,
+        customFields: Map<String, Any> = emptyMap(),
     )
 
     suspend fun createExecution(
@@ -52,5 +53,6 @@ interface ZephyrScaleApiService : AutoCloseable {
         status: ExecutionStatus,
         comment: String? = null,
         accountInfo: AccountInfo? = null,
+        customFields: Map<String, Any> = emptyMap(),
     )
 }
