@@ -153,6 +153,30 @@ Contains parameters for synchronization with Zephyr
   You can change the behavior by using _CREATE_NEW_ value. The default value it _UPDATE_LAST_.
 + **versionPattern** - the regexp that will be used to match the version part for Zephyr Scale events structure [see structure here](#zephyr-scale-sever--cloud).
   **_Has no effect for Zephyr SQUAD_**. The default value is `(((\d+)|([a-zA-Z]+))\.?)+` (please do not forget to escape `\` by adding another one before `\\`)
++ **customFields** - the custom fields that should be added to the test case execution. It is a mapping between field name and how its value should be computed.
+  **_Has no effect for Zephyr SQUAD_**.
+  The value can be:
+  + some constant value
+    ```yaml
+    customFields:
+      "Const Field":
+        type: const
+        value: 42
+    ```
+  + extracted from event (ID, NAME)
+    ```yaml
+    customFields:
+      "From Event Field":
+        type: event
+        extract: ID
+    ```
+  + extracted from related JIRA information (VERSION, ACCOUNT_ID, ACCOUNT_NAME)
+    ```yaml
+    customFields:
+      "From Jira Field":
+        type: jira
+        extract: VERSION
+    ```
 
 ##### Strategies (only for Zephyr Squad)
 
