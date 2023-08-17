@@ -328,7 +328,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     same(cycle),
                     argThat { key == "TEST-T1234" },
                     argThat { name == "PASS" },
-                    argThat { contains(testCase.eventId.id) },
+                    argThat { contains(testCase.eventId.id) && contains(testCase.eventName) },
                     same(accountInfo),
                 )
                 verify(zephyr).getTestCase(eq("TEST-T1235"))
@@ -340,7 +340,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     same(cycle),
                     argThat { key == "TEST-T1235" },
                     argThat { name == "PASS" },
-                    argThat { contains(testCase.eventId.id) },
+                    argThat { contains(testCase.eventId.id) && contains(testCase.eventName) },
                     same(accountInfo),
                 )
                 verifyNoMoreInteractions()
