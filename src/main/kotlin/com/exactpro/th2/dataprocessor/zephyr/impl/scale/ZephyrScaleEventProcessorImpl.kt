@@ -76,18 +76,25 @@ class ZephyrScaleEventProcessorImpl(
         event: GrpcEvent,
         eventStatus: EventStatus
     ) {
-        val testCaseKey = eventName.toIssueKey()
-        LOGGER.trace { "Checking for test case with key $testCaseKey" }
-        val testCase: TestCase = zephyr.getTestCase(testCaseKey)
-        val project: Project = jira.projectByKey(testCase.projectKey)
-        val executionStatus: ExecutionStatus = findExecutionStatus(project, eventStatus)
-        val cycleRegex = chooseCycleRegex()
-        LOGGER.trace { "Extracting cycle and version from parents of event ${event.shortString}" }
-        val (cycleName, versionName) = extractCycleAndVersionOrCfgValues(event, cycleRegex, testCase)
-        val version: Version = findVersion(project, versionName)
-        val cycle: Cycle = findCycle(project, version, cycleName, versionName)
+        val issueKeys = extractIssues(eventName)
+        if (issueKeys.isEmpty()) {
+            LOGGER.warn { "Event name $eventName matched the regex ${configuration.issueRegexp.pattern} but no issue keys were extracted" }
+            return
+        }
+        LOGGER.info { "Extracted ${issueKeys.size} issue key(s) from '$eventName'" }
+        for (issueKey in issueKeys) {
+            LOGGER.trace { "Checking for test case with key $issueKey" }
+            val testCase: TestCase = zephyr.getTestCase(issueKey)
+            val project: Project = jira.projectByKey(testCase.projectKey)
+            val executionStatus: ExecutionStatus = findExecutionStatus(project, eventStatus)
+            val cycleRegex = chooseCycleRegex()
+            LOGGER.trace { "Extracting cycle and version from parents of event ${event.shortString}" }
+            val (cycleName, versionName) = extractCycleAndVersionOrCfgValues(event, cycleRegex, testCase)
+            val version: Version = findVersion(project, versionName)
+            val cycle: Cycle = findCycle(project, version, cycleName, versionName)
 
-        createExecution(project, version, cycle, testCase, executionStatus, event)
+            createExecution(project, version, cycle, testCase, executionStatus, event)
+        }
     }
 
     private fun EventProcessorContext<ZephyrScaleApiService>.chooseCycleRegex(): Regex =

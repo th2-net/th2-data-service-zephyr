@@ -258,6 +258,96 @@ internal class TestZephyrScaleEventProcessorImpl {
         }
     }
 
+    @Test
+    fun `updates all issues that match the pattern`() {
+        val version = Version(1, "1.2.3")
+        val project = Project(
+            1,
+            "TEST",
+            "TEST",
+            listOf(version)
+        )
+        runBlocking {
+            doReturn(project).whenever(jira).projectByKey(eq("TEST"))
+            doReturn(listOf(ExecutionStatus(1, "PASS"), ExecutionStatus(2, "WIP")))
+                .whenever(zephyr).getExecutionsStatuses(eq(project))
+            doAnswer {
+                val key: String = it.getArgument(0)
+                TestCase(1, key, project.key)
+            }.whenever(zephyr).getTestCase(argThat { startsWith("TEST-") })
+        }
+        runTest {
+            val root = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"1"))
+                .setEventName("Root")
+                .build()
+            val cycleEvent = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"2"))
+                .setParentEventId(root.eventId)
+                .setEventName("TestCycle | ${version.name} |${Instant.now()}")
+                .build()
+            val intermediateEvent = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"3"))
+                .setParentEventId(cycleEvent.eventId)
+                .setEventName("SomeEvent")
+                .build()
+            val testCase = EventResponse.newBuilder()
+                .setEventId(EventUtils.toEventID(Instant.now(), BOOK_NAME, SCOPE_NAME,"4"))
+                .setParentEventId(intermediateEvent.eventId)
+                .setEventName("[TEST_T1234] [TEST_T1235] Some other data")
+                .setStatus(EventStatus.SUCCESS)
+                .build()
+            val eventsById = arrayOf(root, cycleEvent, intermediateEvent, testCase).associateBy { it.eventId }
+            whenever(dataProvider.getEvent(any(), any())).then {
+                val id: EventID = it.getArgument(0)
+                val observer: StreamObserver<EventResponse> = it.getArgument(1)
+                eventsById[id]?.let { event ->
+                    observer.onNext(event)
+                    observer.onCompleted()
+                } ?: run { observer.onError(RuntimeException("Unknown id $id")) }
+            }
+            val cycle = Cycle(1, "TEST-C1", "TestCycle", version.name)
+            whenever(zephyr.getCycle(same(project), same(version), isNull(), eq("TestCycle")))
+                .thenReturn(cycle)
+
+            Assertions.assertTrue(processor.onEvent(testCase.toEvent())) { "The event for issue was not processed" }
+
+            inOrder(jira, zephyr) {
+                verify(zephyr).getTestCase(eq("TEST-T1234"))
+                verify(jira).projectByKey("TEST")
+                verify(zephyr).getExecutionsStatuses(same(project))
+                verify(zephyr).getCycle(
+                    same(project),
+                    same(version),
+                    isNull(),
+                    eq("TestCycle"),
+                )
+                verify(zephyr).updateExecution(
+                    same(project),
+                    same(version),
+                    same(cycle),
+                    argThat { key == "TEST-T1234" },
+                    argThat { name == "PASS" },
+                    argThat { contains(testCase.eventId.id) },
+                    same(accountInfo),
+                )
+                verify(zephyr).getTestCase(eq("TEST-T1235"))
+                verify(jira).projectByKey("TEST")
+                verify(zephyr).getExecutionsStatuses(same(project))
+                verify(zephyr).updateExecution(
+                    same(project),
+                    same(version),
+                    same(cycle),
+                    argThat { key == "TEST-T1235" },
+                    argThat { name == "PASS" },
+                    argThat { contains(testCase.eventId.id) },
+                    same(accountInfo),
+                )
+                verifyNoMoreInteractions()
+            }
+        }
+    }
+
     companion object {
         private const val BOOK_NAME = "book"
         private const val SCOPE_NAME = "scope"

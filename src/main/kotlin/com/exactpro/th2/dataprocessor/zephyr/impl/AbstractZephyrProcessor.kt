@@ -70,7 +70,7 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
     protected suspend fun GrpcEvent.findRoot(): GrpcEvent? = findParent { !it.hasParentId() }
 
     private fun matchesIssue(eventName: String): List<EventProcessorCfg> {
-        return configurations.filter { it.issueRegexp.matches(eventName) }
+        return configurations.filter { it.issueRegexp.find(eventName) != null }
     }
 
     protected fun EventProcessorContext<*>.getCycleNameAndVersionFromCfg(key: String): VersionCycleKey {
@@ -94,6 +94,12 @@ abstract class AbstractZephyrProcessor<ZEPHYR : AutoCloseable>(
             get() = services.jira
         val zephyr: ZEPHYR
             get() = services.zephyr
+    }
+
+    protected fun EventProcessorContext<*>.extractIssues(eventName: String): Set<String> {
+        return configuration.issueRegexp.findAll(eventName)
+            .map { it.value.toIssueKey() }
+            .toSet()
     }
 
     companion object {
