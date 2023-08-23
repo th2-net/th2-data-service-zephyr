@@ -165,7 +165,7 @@ class ZephyrScaleCloudApiServiceImpl(
                 version = version.name,
                 comment = comment,
                 executedById = accountInfo?.accountId,
-                customFields = customFields.takeIf(Map<*, *>::isEmpty),
+                customFields = customFields.takeUnless(Map<*, *>::isEmpty),
             )
         }
     }

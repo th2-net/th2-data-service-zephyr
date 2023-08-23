@@ -106,7 +106,7 @@ class ZephyrScaleServerApiService(
                 executedBy = accountInfo?.key,
                 assignedTo = lastExecution.assignedTo,
                 environment = lastExecution.environment,
-                customFields = customFields.takeIf(Map<*, *>::isEmpty),
+                customFields = customFields.takeUnless(Map<*, *>::isEmpty),
             )
         }
 
@@ -131,7 +131,7 @@ class ZephyrScaleServerApiService(
                 version = version.name,
                 comment = comment,
                 executedBy = accountInfo?.key,
-                customFields = customFields.takeIf(Map<*, *>::isEmpty),
+                customFields = customFields.takeUnless(Map<*, *>::isEmpty),
             )
         }
         LOGGER.trace { "Execution id: ${result.id}" }
