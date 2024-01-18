@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.service.api.scale
 
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.BaseCycle
@@ -40,7 +41,8 @@ interface ZephyrScaleApiService : AutoCloseable {
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String? = null,
-        executedBy: String? = null,
+        accountInfo: AccountInfo? = null,
+        customFields: Map<String, Any> = emptyMap(),
     )
 
     suspend fun createExecution(
@@ -50,6 +52,7 @@ interface ZephyrScaleApiService : AutoCloseable {
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String? = null,
-        executedBy: String? = null,
+        accountInfo: AccountInfo? = null,
+        customFields: Map<String, Any> = emptyMap(),
     )
 }

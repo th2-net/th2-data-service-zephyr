@@ -18,6 +18,7 @@ package com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.cloud
 
 import com.exactpro.th2.dataprocessor.zephyr.cfg.Credentials
 import com.exactpro.th2.dataprocessor.zephyr.cfg.HttpLoggingConfiguration
+import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
@@ -40,6 +41,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import mu.KotlinLogging
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model.BaseCycle as CloudBaseCycle
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model.BaseFolder as CloudBaseFolder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.cloud.model.Cycle as CloudCycle
@@ -52,6 +54,7 @@ class ZephyrScaleCloudApiServiceImpl(
 ) : BaseZephyrApiService(url, credentials, httpLogging, API_PREFIX), ZephyrScaleApiService {
 
     override suspend fun getExecutionsStatuses(project: Project): List<ExecutionStatus> {
+        LOGGER.trace { "Getting statuses for project ${project.key}" }
         return executeSearch(
             urlPath = "statuses",
             params = mapOf(
@@ -62,6 +65,7 @@ class ZephyrScaleCloudApiServiceImpl(
     }
 
     override suspend fun getTestCase(key: String): TestCase {
+        LOGGER.trace { "Getting test case with key $key" }
         require(key.isNotBlank()) { "key cannot be blank" }
         return client.get<CloudTestCase>("$baseApiUrl/testcases/$key").run {
             val project = client.get<ZephyrProject>(project.self)
@@ -70,7 +74,7 @@ class ZephyrScaleCloudApiServiceImpl(
     }
 
     suspend fun getFolder(project: Project, parent: Folder?, name: String): Folder? {
-        return find(
+        return findAll<Folder>(
             urlPath = "folders",
             params = mapOf(
                 "projectKey" to project.key,
@@ -78,7 +82,7 @@ class ZephyrScaleCloudApiServiceImpl(
             ),
         ) { folder ->
             folder.name == name && folder.parentId == parent?.id
-        }
+        }.firstOrNull()
     }
 
     suspend fun createFolder(project: Project, parent: BaseFolder?, name: String): BaseFolder {
@@ -93,23 +97,25 @@ class ZephyrScaleCloudApiServiceImpl(
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     override suspend fun getCycle(project: Project, version: Version, folder: BaseFolder?, name: String): Cycle? {
+        LOGGER.trace { "Getting cycle for project ${project.key} with version ${version.name}, folder ${folder?.name} and name $name" }
         val cloudFolder = folder?.toCloud()
-        return find<CloudCycle>(
+        return findAll<CloudCycle>(
             urlPath = "testcycles",
             params = buildMap {
                 put("projectKey", project.key)
+                put("maxResults", "1000")
                 folder?.apply { put("folderId", id.toString()) }
             }
         ) { cycle ->
-            cycle.folder == cloudFolder && cycle.jiraProjectVersion.id == version.id
-        }?.toCommonModel()
+            cloudFolder?.let { it == cycle.folder } != false && cycle.jiraProjectVersion?.id == version.id && cycle.name == name
+        }.maxByOrNull { it.id }?.toCommonModel()
     }
 
     override suspend fun getCycle(baseCycle: BaseCycle): Cycle {
-        requireNotNull(baseCycle.id) { "cycle id cannot be null" }
-        return client.get<CloudCycle>("$baseApiUrl/testcycles/${baseCycle.id}").toCommonModel()
+        LOGGER.trace { "Getting cycle for key ${baseCycle.key}" }
+        val cycle = client.get<CloudCycle>("$baseApiUrl/testcycles/${baseCycle.key}")
+        return cycle.toCommonModel()
     }
 
     suspend fun createCycle(project: Project, version: Version, folder: BaseFolder?, name: String): BaseCycle {
@@ -131,19 +137,10 @@ class ZephyrScaleCloudApiServiceImpl(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        executedBy: String?
+        accountInfo: AccountInfo?,
+        customFields: Map<String, Any>,
     ) {
-        return client.post("$baseApiUrl/testexecutions") {
-            contentType(ContentType.Application.Json)
-            body = CreateExecution(
-                projectKey = project.key,
-                testCaseKey = testCase.key,
-                testCycleKey = cycle.key,
-                statusName = status.name,
-                version = version.name,
-                comment = comment,
-            )
-        }
+        throw UnsupportedOperationException("the update execution is not supported by Zephyr Scale Cloud")
     }
 
     override suspend fun createExecution(
@@ -153,9 +150,24 @@ class ZephyrScaleCloudApiServiceImpl(
         testCase: TestCase,
         status: ExecutionStatus,
         comment: String?,
-        executedBy: String?
+        accountInfo: AccountInfo?,
+        customFields: Map<String, Any>,
     ) {
-        throw UnsupportedOperationException("the method is not implemented for cloud api. Please, contact the developers")
+        LOGGER.trace { "Creating execution: project ${project.key} with version ${version.name}, cycle ${cycle.key}, " +
+            "test case ${testCase.key}, status $status, comment: $comment, accountInfo: $accountInfo" }
+        return client.post("$baseApiUrl/testexecutions") {
+            contentType(ContentType.Application.Json)
+            body = CreateExecution(
+                projectKey = project.key,
+                testCaseKey = testCase.key,
+                testCycleKey = cycle.key,
+                statusName = status.name,
+                version = version.name,
+                comment = comment,
+                executedById = accountInfo?.accountId,
+                customFields = customFields.takeUnless(Map<*, *>::isEmpty),
+            )
+        }
     }
 
     suspend fun findExecutions(project: Project, cycle: CloudBaseCycle, issue: Issue): List<Execution> {
@@ -186,41 +198,45 @@ class ZephyrScaleCloudApiServiceImpl(
                 break
             }
             result = client.get(result.next ?: error("result $result must contain the link to next page but does not"))
-        } while (!result.isLast)
+        } while (true)
 
         return results
     }
 
-    private suspend inline fun <reified T : Any> find(
+    private suspend inline fun <reified T : Any> findAll(
         urlPath: String,
         params: Map<String, String>,
         match: (T) -> Boolean
-    ): T? {
+    ): List<T> {
         var result: SearchResult<T> = client.get("$baseApiUrl/$urlPath") { params.forEach(this::parameter) }
         if (result.values.isEmpty()) {
-            return null
+            return emptyList()
         }
 
-        do {
-            for (value in result.values) {
-                if (match(value)) {
-                    return value
+        return buildList {
+            do {
+                for (value in result.values) {
+                    if (match(value)) {
+                        add(value)
+                    }
                 }
-            }
-            result = client.get(result.next ?: error("result $result must contain the link to next page but does not"))
-        } while (!result.isLast)
-
-        return null
+                if (result.isLast) {
+                    break
+                }
+                result = client.get(result.next ?: error("result $result must contain the link to next page but does not"))
+            } while (true)
+        }
     }
 
     companion object {
-        private const val API_PREFIX = ""
+        private const val API_PREFIX = "v2"
+        private val LOGGER = KotlinLogging.logger { }
     }
 }
 
 private fun CloudBaseCycle.toCommonModule(): BaseCycle = BaseCycle(id, key)
 
-private fun CloudCycle.toCommonModel(): Cycle = Cycle(id, key, name, jiraProjectVersion.id.toString())
+private fun CloudCycle.toCommonModel(): Cycle = Cycle(id, key, name, jiraProjectVersion?.id.toString())
 
 private fun BaseFolder.toCloud(): CloudBaseFolder = CloudBaseFolder(requireNotNull(id) { "cannot be null" })
 

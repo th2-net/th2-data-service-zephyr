@@ -41,6 +41,7 @@ import com.exactpro.th2.dataprocessor.zephyr.impl.standard.RelatedIssuesStrategi
 import com.exactpro.th2.dataprocessor.zephyr.impl.standard.StandardServiceHolder
 import com.exactpro.th2.dataprocessor.zephyr.impl.standard.ZephyrEventProcessorImpl
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.cloud.ZephyrScaleCloudApiServiceImpl
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.server.ZephyrScaleServerApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.standard.ZephyrApiServiceImpl
 import mu.KotlinLogging
@@ -118,9 +119,16 @@ fun main(args: Array<String>) {
             return connections to processor
         }
 
+        fun createScaleCloud(): Pair<Map<String, ServiceHolder<*>>, ZephyrEventProcessor> {
+            val connections: Map<String, ScaleServiceHolder> = cfg.createConnections(::ScaleServiceHolder, ::ZephyrScaleCloudApiServiceImpl)
+            val processor = ZephyrScaleEventProcessorImpl(cfg.syncParameters, connections, dataProvider)
+            return connections to processor
+        }
+
         val (connections: Map<String, ServiceHolder<*>>, processor) = when (cfg.zephyrType) {
             ZephyrType.SQUAD -> createSquad()
             ZephyrType.SCALE_SERVER -> createScale()
+            ZephyrType.SCALE_CLOUD -> createScaleCloud()
         }
 
         resources += AutoCloseable {
@@ -198,7 +206,7 @@ private fun <T : AutoCloseable, H : ServiceHolder<T>> ZephyrSynchronizationCfg.c
         )
 
         val zephyrApi = zephyrSupplier(
-            connection.baseUrl,
+            connection.zephyrUrl,
             connection.zephyr,
             httpLogging
         )

@@ -31,12 +31,13 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.util.AttributeKey
 import org.apache.commons.lang3.StringUtils
-import org.apache.http.message.BasicHeaderValueParser
 import org.apache.http.message.ParserCursor
+import org.apache.http.message.TokenParser
 import org.apache.http.util.CharArrayBuffer
 import java.io.UnsupportedEncodingException
 import java.net.URI
 import java.net.URLDecoder
+import java.util.BitSet
 import java.util.concurrent.TimeUnit
 
 class JwtAuthentication internal constructor(
@@ -77,11 +78,36 @@ class JwtAuthentication internal constructor(
         val buffer = CharArrayBuffer(query.length)
         buffer.append(query)
         val cursor = ParserCursor(0, buffer.length)
+        val delimiters = BitSet().apply {
+            QUERY_DELIMITERS.forEach {
+                set(it.code)
+            }
+        }
+        val tokenDelimiter = '='.code
         while (!cursor.atEnd()) {
-            val nameValuePair = BasicHeaderValueParser.INSTANCE.parseNameValuePair(buffer, cursor, QUERY_DELIMITERS)
-            if (!StringUtils.isEmpty(nameValuePair.name)) {
-                val decodedName = urlDecode(nameValuePair.name)
-                val decodedValue = urlDecode(nameValuePair.value)
+            delimiters.set(tokenDelimiter)
+            val name = TokenParser.INSTANCE.parseToken(buffer, cursor, delimiters)
+            if (!StringUtils.isEmpty(name)) {
+                val decodedName = urlDecode(name)
+                // Copied from
+                // org.apache.http.message.BasicHeaderValueParser.parseNameValuePair(CharArrayBuffer, ParserCursor, char[])
+                val value = if (cursor.atEnd()) {
+                    null
+                } else {
+                    val delim = buffer[cursor.pos].code
+                    cursor.updatePos(cursor.pos + 1)
+                    if (delim != tokenDelimiter) {
+                        null
+                    } else {
+                        delimiters.clear(tokenDelimiter)
+                        TokenParser.INSTANCE.parseValue(buffer, cursor, delimiters).also {
+                            if (!cursor.atEnd()) {
+                                cursor.updatePos(cursor.pos + 1)
+                            }
+                        }
+                    }
+                }
+                val decodedValue = urlDecode(value)
                 queryParams.computeIfAbsent(decodedName) { arrayListOf() }.add(decodedValue)
             }
         }

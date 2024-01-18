@@ -75,6 +75,11 @@ class EventProcessorCfg(
      * Has no effect for [SQUAD][com.exactpro.th2.dataprocessor.zephyr.cfg.ZephyrType.SQUAD] type.
      */
     val versionPattern: String? = null,
+
+    /**
+     * Mapping between custom field to set in execution and the value it should have
+     */
+    val customFields: Map<String, CustomFieldExtraction> = emptyMap(),
 ) {
     val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {

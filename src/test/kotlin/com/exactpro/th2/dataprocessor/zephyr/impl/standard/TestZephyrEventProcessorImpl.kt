@@ -32,19 +32,20 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.standard.model.Folder
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
-import com.nhaarman.mockitokotlin2.any
-import com.nhaarman.mockitokotlin2.argThat
-import com.nhaarman.mockitokotlin2.eq
-import com.nhaarman.mockitokotlin2.inOrder
-import com.nhaarman.mockitokotlin2.isNull
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.never
-import com.nhaarman.mockitokotlin2.same
-import com.nhaarman.mockitokotlin2.whenever
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.isNull
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.same
+import org.mockito.kotlin.whenever
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -86,7 +87,7 @@ class TestZephyrEventProcessorImpl {
     @ParameterizedTest
     @EnumSource(value = EventStatus::class, names = ["UNRECOGNIZED"], mode = EnumSource.Mode.EXCLUDE)
     fun `creates all required structure for event`(issueStatus: EventStatus) {
-        TestCoroutineScope().runBlockingTest {
+        runTest {
             val root = EventResponse.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
@@ -155,7 +156,7 @@ class TestZephyrEventProcessorImpl {
 
     @Test
     fun `does not create all structure again`() {
-        TestCoroutineScope().runBlockingTest {
+        runTest {
             val root = EventResponse.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
@@ -210,7 +211,7 @@ class TestZephyrEventProcessorImpl {
 
     @Test
     fun `adds test to cycle if not folder found`() {
-        TestCoroutineScope().runBlockingTest {
+        runTest {
             val root = EventResponse.newBuilder()
                 .setEventId(toEventID("1"))
                 .setEventName("1.0.0|TestCycle|${Instant.now()}")
