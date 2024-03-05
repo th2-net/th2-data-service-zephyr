@@ -20,8 +20,13 @@ import com.exactpro.th2.common.event.EventUtils
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprocessor.zephyr.cfg.ConnectionCfg
+import com.exactpro.th2.dataprocessor.zephyr.cfg.ConstantValue
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.grpc.toEvent
+import com.exactpro.th2.dataprocessor.zephyr.cfg.EventValue
+import com.exactpro.th2.dataprocessor.zephyr.cfg.EventValueKey
+import com.exactpro.th2.dataprocessor.zephyr.cfg.JiraValue
+import com.exactpro.th2.dataprocessor.zephyr.cfg.JiraValueKey
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
@@ -75,7 +80,12 @@ internal class TestZephyrScaleEventProcessorImpl {
     private val processor = ZephyrScaleEventProcessorImpl(
         configuration = EventProcessorCfg(
             "TEST_T\\d+",
-            statusMapping = statusMapping
+            statusMapping = statusMapping,
+            customFields = mapOf(
+                "Const" to ConstantValue(42),
+                "Jira" to JiraValue(JiraValueKey.VERSION),
+                "Event" to EventValue(EventValueKey.NAME),
+            )
         ),
         mapOf(ConnectionCfg.DEFAULT_NAME to ScaleServiceHolder(jira, zephyr)), dataProvider,
     )
@@ -154,6 +164,11 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == statusMapping[testCaseStatus] },
                     argThat { contains(testCase.eventId.id) },
                     same(accountInfo),
+                    eq(mapOf(
+                        "Const" to 42,
+                        "Jira" to versionValue,
+                        "Event" to testCase.eventName,
+                    )),
                 )
                 verifyNoMoreInteractions()
             }
@@ -232,6 +247,11 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == "PASS" },
                     argThat { contains(testCase.eventId.id) },
                     same(accountInfo),
+                    eq(mapOf(
+                        "Const" to 42,
+                        "Jira" to version.name,
+                        "Event" to testCase.eventName,
+                    )),
                 )
                 verifyNoMoreInteractions()
             }
@@ -252,6 +272,11 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == "PASS" },
                     argThat { contains(testCase.eventId.id) },
                     same(accountInfo),
+                    eq(mapOf(
+                        "Const" to 42,
+                        "Jira" to version.name,
+                        "Event" to testCase.eventName,
+                    )),
                 )
                 verifyNoMoreInteractions()
             }
@@ -314,7 +339,7 @@ internal class TestZephyrScaleEventProcessorImpl {
 
             inOrder(jira, zephyr) {
                 verify(zephyr).getTestCase(eq("TEST-T1234"))
-                verify(jira).projectByKey("TEST")
+                verify(jira).projectByKey(eq("TEST"))
                 verify(zephyr).getExecutionsStatuses(same(project))
                 verify(zephyr).getCycle(
                     same(project),
@@ -330,6 +355,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == "PASS" },
                     argThat { contains(testCase.eventId.id) && contains(testCase.eventName) },
                     same(accountInfo),
+                    any(),
                 )
                 verify(zephyr).getTestCase(eq("TEST-T1235"))
                 verify(jira).projectByKey("TEST")
@@ -342,6 +368,7 @@ internal class TestZephyrScaleEventProcessorImpl {
                     argThat { name == "PASS" },
                     argThat { contains(testCase.eventId.id) && contains(testCase.eventName) },
                     same(accountInfo),
+                    any(),
                 )
                 verifyNoMoreInteractions()
             }

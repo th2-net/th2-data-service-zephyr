@@ -27,4 +27,5 @@ class CreateExecution(
     val version: String,
     val comment: String? = null,
     val executedById: String? = null,
+    val customFields: Map<String, Any>? = null,
 )

@@ -163,4 +163,97 @@ class TestZephyrSynchronizationCfg {
             }
         }
     }
+
+    @Test
+    fun `deserialize custom fields`() {
+        val data = """
+        {
+          "connection": {
+            "baseUrl": "https://your.jira.address.com",
+            "jira": {
+              "username": "jira-user",
+              "key": "your password"
+            }
+          },
+          "dataService": {
+            "name": "ZephyrService",
+            "versionMarker": "0.0.1"
+          },
+          "syncParameters": {
+            "issueFormat": "QAP_\\d+",
+            "delimiter": "|",
+            "statusMapping": {
+              "SUCCESS": "PASS",
+              "FAILED": "WIP"
+            },
+            "jobAwaitTimeout": 1000,
+            "customFields": {
+              "Const": {
+                "value": 42
+              },
+              "FromEvent": {
+                "type": "event",
+                "extract": "NAME"
+              },
+              "FromJira": {
+                "type": "jira",
+                "extract": "VERSION"
+              }
+            }
+          },
+          "httpLogging": {
+            "level": "ALL"
+          }
+        }
+        """.trimIndent()
+
+        val cfg = mapper.readValue<ZephyrSynchronizationCfg>(data)
+        assertEquals(1, cfg.connections.size) { "Deserialized connections: ${cfg.connections}" }
+        with(cfg.connections.first()) {
+            assertEquals(ConnectionCfg.DEFAULT_NAME, name)
+            assertEquals("https://your.jira.address.com", baseUrl)
+            assertTrue(jira is BaseAuth) { "unexpected type of credentials: ${jira::class}" }
+            val baseAuth = jira as BaseAuth
+            assertEquals("jira-user", baseAuth.username)
+            assertEquals("your password", baseAuth.key)
+        }
+        with(cfg.dataService) {
+            assertEquals("ZephyrService", name)
+            assertEquals("0.0.1", versionMarker)
+        }
+        assertEquals(1, cfg.syncParameters.size)
+        with(cfg.syncParameters.first()) {
+            assertEquals("QAP_\\d+", issueRegexp.pattern)
+            assertEquals('|', delimiter)
+            assertEquals("PASS", statusMapping[EventStatus.SUCCESS])
+            assertEquals("WIP", statusMapping[EventStatus.FAILED])
+            assertEquals(1000, jobAwaitTimeout)
+            assertTrue(customFields.isNotEmpty(), "not custom fields")
+            customFields.assertKey("Const").apply {
+                assertTrue(this is ConstantValue) { "should be constant but was ${this::class}" }
+                this as ConstantValue
+                assertEquals(42, value, "unexpected value")
+            }
+
+            customFields.assertKey("FromEvent").apply {
+                assertTrue(this is EventValue) { "should be event value but was ${this::class}" }
+                this as EventValue
+                assertEquals(EventValueKey.NAME, extract, "unexpected extraction type")
+            }
+
+            customFields.assertKey("FromJira").apply {
+                assertTrue(this is JiraValue) { "should be jira value but was ${this::class}" }
+                this as JiraValue
+                assertEquals(JiraValueKey.VERSION, extract, "unexpected extraction type")
+            }
+        }
+        with(cfg.httpLogging) {
+            assertEquals(LogLevel.ALL, level)
+        }
+    }
+}
+
+private fun <K, V> Map<K, V>.assertKey(key: K): V {
+    assertNotNull(get(key)) { "no value for key $key" }
+    return getValue(key)
 }
