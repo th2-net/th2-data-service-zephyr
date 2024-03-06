@@ -22,6 +22,9 @@ import com.exactpro.th2.dataprocessor.zephyr.GrpcEvent
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.CustomValueExtractor
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.ExtractionContext
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.createCustomValueExtractors
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.AccountInfo
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
@@ -33,7 +36,11 @@ import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.ExecutionSt
 import com.exactpro.th2.dataprocessor.zephyr.service.api.scale.model.TestCase
 import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import mu.KotlinLogging
+import org.apache.commons.collections4.map.LRUMap
+import javax.annotation.concurrent.GuardedBy
 
 class ZephyrScaleEventProcessorImpl(
     configurations: List<EventProcessorCfg>,
@@ -56,23 +63,47 @@ class ZephyrScaleEventProcessorImpl(
         }
     }
 
+    private class CustomFields(val mapping: Map<String, CustomValueExtractor>)
+
+    private val customFieldExtractors: Map<String, CustomFields> = configurations.associate {
+        it.destination to CustomFields(createCustomValueExtractors(it.customFields))
+    }
+
+    private data class CycleCacheKey(
+        private val projectId: Long,
+        private val version: String,
+        private val name: String,
+    )
+
+    private val lock = Mutex()
+
+    @GuardedBy("lock")
+    private val cycleCache = LRUMap<CycleCacheKey, Cycle>(100)
+
     override suspend fun EventProcessorContext<ZephyrScaleApiService>.processEvent(
         eventName: String,
         event: GrpcEvent,
         eventStatus: EventStatus
     ) {
-        val testCaseKey = eventName.toIssueKey()
-        LOGGER.trace { "Checking for test case with key $testCaseKey" }
-        val testCase: TestCase = zephyr.getTestCase(testCaseKey)
-        val project: Project = jira.projectByKey(testCase.projectKey)
-        val executionStatus: ExecutionStatus = findExecutionStatus(project, eventStatus)
-        val cycleRegex = chooseCycleRegex()
-        LOGGER.trace { "Extracting cycle and version from parents of event ${event.shortString}" }
-        val (cycleName, versionName) = extractCycleAndVersionOrCfgValues(event, cycleRegex, testCase)
-        val version: Version = findVersion(project, versionName)
-        val cycle: Cycle = findCycle(project, version, cycleName, versionName)
+        val issueKeys = extractIssues(eventName)
+        if (issueKeys.isEmpty()) {
+            LOGGER.warn { "Event name $eventName matched the regex ${configuration.issueRegexp.pattern} but no issue keys were extracted" }
+            return
+        }
+        LOGGER.info { "Extracted ${issueKeys.size} issue key(s) from '$eventName'" }
+        for (issueKey in issueKeys) {
+            LOGGER.trace { "Checking for test case with key $issueKey" }
+            val testCase: TestCase = zephyr.getTestCase(issueKey)
+            val project: Project = jira.projectByKey(testCase.projectKey)
+            val executionStatus: ExecutionStatus = findExecutionStatus(project, eventStatus)
+            val cycleRegex = chooseCycleRegex()
+            LOGGER.trace { "Extracting cycle and version from parents of event ${event.shortString}" }
+            val (cycleName, versionName) = extractCycleAndVersionOrCfgValues(event, cycleRegex, testCase)
+            val version: Version = findVersion(project, versionName)
+            val cycle: Cycle = findCycle(project, version, cycleName, versionName)
 
-        createExecution(project, version, cycle, testCase, executionStatus, event)
+            createExecution(project, version, cycle, testCase, executionStatus, event)
+        }
     }
 
     private fun EventProcessorContext<ZephyrScaleApiService>.chooseCycleRegex(): Regex =
@@ -94,16 +125,48 @@ class ZephyrScaleEventProcessorImpl(
     ) {
         val action: suspend (
             ZephyrScaleApiService,
-            Project, Version, BaseCycle, TestCase, ExecutionStatus, comment: String?, executedBy: String?
+            Project,
+            Version,
+            BaseCycle,
+            TestCase,
+            ExecutionStatus,
+            comment: String?,
+            accountInfo: AccountInfo?,
+            customFields: Map<String, Any>,
         ) -> Unit = when (configuration.testExecutionMode) {
             TestExecutionMode.UPDATE_LAST -> ZephyrScaleApiService::updateExecution
             TestExecutionMode.CREATE_NEW -> ZephyrScaleApiService::createExecution
         }
+        val customFields: Map<String, Any> = collectCustomFields(event, version)
         action(zephyr,
             project, version, cycle, testCase, executionStatus,
-            "Updated by th2 because of event with id: ${event.id.toJson()}",
-            accountInfoByConnection[configuration.destination]?.key,
+            """
+              |Updated by th2 because of event with id: ${event.id.toJson()}
+              |Event: ${event.name}
+            """.trimMargin(),
+            accountInfoByConnection[configuration.destination],
+            customFields,
         )
+    }
+
+    private fun EventProcessorContext<ZephyrScaleApiService>.collectCustomFields(
+        event: GrpcEvent,
+        version: Version,
+    ): Map<String, Any> {
+        val extractors: CustomFields = customFieldExtractors.getValue(configuration.destination)
+        val customFields: Map<String, Any> = if (extractors.mapping.isEmpty()) {
+            emptyMap()
+        } else {
+            val ctx = ExtractionContext(
+                event = event,
+                accountInfo = accountInfoByConnection.getValue(configuration.destination),
+                version = version,
+            )
+            extractors.mapping.mapValues { (_, extractor) ->
+                extractor.extract(ctx)
+            }
+        }
+        return customFields
     }
 
     private suspend fun EventProcessorContext<ZephyrScaleApiService>.findCycle(
@@ -111,8 +174,16 @@ class ZephyrScaleEventProcessorImpl(
         version: Version,
         cycleName: String,
         versionName: String
-    ): Cycle = zephyr.getCycle(project, version, folder = null, cycleName)
-        ?: error("cannot find cycle $cycleName for project ${project.key} and version $versionName")
+    ): Cycle {
+        // We cache the result because the search for cycle by name takes a lot of time
+        val cacheKey = CycleCacheKey(project.id, version.name, cycleName)
+        return lock.withLock {
+            val cachedCycle = cycleCache[cacheKey]
+            cachedCycle?.apply { LOGGER.trace { "Cycle cache hit. Key: $cacheKey, Value: $key ($name)" } }
+                ?: zephyr.getCycle(project, version, folder = null, cycleName)?.also { cycleCache[cacheKey] = it }
+                ?: error("cannot find cycle $cycleName for project ${project.key} and version $versionName")
+        }
+    }
 
     private fun findVersion(
         project: Project,

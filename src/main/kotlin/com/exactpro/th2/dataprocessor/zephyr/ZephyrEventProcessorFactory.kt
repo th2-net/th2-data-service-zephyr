@@ -33,6 +33,7 @@ import com.exactpro.th2.dataprocessor.zephyr.impl.standard.StandardServiceHolder
 import com.exactpro.th2.dataprocessor.zephyr.impl.standard.ZephyrEventProcessorImpl
 import com.exactpro.th2.dataprocessor.zephyr.service.api.JiraApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.JiraApiServiceImpl
+import com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.cloud.ZephyrScaleCloudApiServiceImpl
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.scale.server.ZephyrScaleServerApiService
 import com.exactpro.th2.dataprocessor.zephyr.service.impl.standard.ZephyrApiServiceImpl
 import com.exactpro.th2.dataprovider.lw.grpc.AsyncDataProviderService
@@ -90,6 +91,12 @@ class ZephyrEventProcessorFactory : IProcessorFactory {
             return connections to processor
         }
 
+        fun createScaleCloud(): Pair<Map<String, ServiceHolder<*>>, AbstractZephyrProcessor<*>> {
+            val connections: Map<String, ScaleServiceHolder> = cfg.createConnections(::ScaleServiceHolder, ::ZephyrScaleCloudApiServiceImpl)
+            val processor = ZephyrScaleEventProcessorImpl(cfg.syncParameters, connections, dataProvider)
+            return connections to processor
+        }
+
         val onInfo: (Event) -> Unit = { event ->
             runCatching {
                 context.eventBatcher.onEvent(event.toProto(context.processorEventId))
@@ -115,6 +122,7 @@ class ZephyrEventProcessorFactory : IProcessorFactory {
         val (connections: Map<String, ServiceHolder<*>>, processor) = when (cfg.zephyrType) {
             ZephyrType.SQUAD -> createSquad()
             ZephyrType.SCALE_SERVER -> createScale()
+            ZephyrType.SCALE_CLOUD -> createScaleCloud()
         }
         return ZephyrEventProcessor(connections, processor, onInfo, onError)
     }

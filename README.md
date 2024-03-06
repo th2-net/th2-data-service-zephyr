@@ -1,4 +1,4 @@
-# Zephyr data processor (0.3.0)
+# Zephyr data processor (1.0.0)
 
 Zephyr data processor synchronizes the test in th2 with Zephyr Squad and Zephyr Scale.
 It searches for events that match format in the configuration and updates test executions.
@@ -17,7 +17,7 @@ Root event with name `version|CycleName|Any other information you want`
    |- TEST-1253  // the issue event. Its name must match the format in the configuration
 ```
 
-### Zephyr Scale
+### Zephyr Scale (Sever / Cloud)
 
 ```
 Root event
@@ -137,6 +137,7 @@ spec:
 Determinate which type of synchronization to use. Possible values:
 + SQUAD
 + SCALE_SERVER
++ SCALE_CLOUD
 
 The default value is `SQUAD`
 
@@ -162,6 +163,7 @@ Contains information about the endpoint ot connect
         token: "some generated token"
     ```
 + zephyr - block contains credentials to connect to Zephyr. By default, the same credentials as for Jira are used.
++ zephyrUrl - url to the Zephyr API. By default, equal to _baseUrl_.
 
 #### dataService
 
@@ -182,8 +184,33 @@ Contains parameters for synchronization with Zephyr
   They will be updated using the version, cycle and folder for the current issue.
 + **testExecutionMode** - defines how the test execution should be reported. By default, it tries to update an existing execution.
   You can change the behavior by using _CREATE_NEW_ value. The default value it _UPDATE_LAST_.
-+ **versionPattern** - the regexp that will be used to match the version part for Zephyr Scale events structure [see structure here](#zephyr-scale).
++ **versionPattern** - the regexp that will be used to match the version part for Zephyr Scale events structure [see structure here](#zephyr-scale-sever--cloud).
   **_Has no effect for Zephyr SQUAD_**. The default value is `(((\d+)|([a-zA-Z]+))\.?)+` (please do not forget to escape `\` by adding another one before `\\`)
++ **customFields** - the custom fields that should be added to the test case execution. It is a mapping between field name and how its value should be computed.
+  **_Has no effect for Zephyr SQUAD_**.
+  The value can be:
+  + some constant value
+    ```yaml
+    customFields:
+      "Const Field":
+        type: const
+        value: 42
+    ```
+  + extracted from event (ID, NAME)
+    ```yaml
+    customFields:
+      "From Event Field":
+        type: event
+        extract: ID
+    ```
+  + extracted from related JIRA information (VERSION, ACCOUNT_ID, ACCOUNT_NAME)
+    ```yaml
+    customFields:
+      "From Jira Field":
+        type: jira
+        extract: VERSION
+    ```
+
 ##### Strategies (only for Zephyr Squad)
 
 All strategies should be configured in the following way:
@@ -253,6 +280,22 @@ Contains parameters to set up the Logging for inner HTTP clients that are used t
 
 # Changes
 
+## v1.0.0
+
+### Added
+
++ Support for Zephyr Scale Cloud. Separate **zephyrUrl** parameter was added to support different URL for Jira and Zephyr
+  By default it has the same value as **baseUrl**.</br>
+  **NOTE: the _testExecutionMode UPDATE_LAST_ is not support by Zephyr Scale Cloud**
+
+### Changed
+
++ Dependencies update:
+    + BOM (4.1.0 -> 4.4.0)
+    + Kotlin (1.5.32 -> 1.6.21)
+    + JIRA rest Java client (5.2.2 -> 5.2.6)
+    + Ktor (1.6.5 -> 1.6.8)
+
 ## v0.3.0
 
 + migrated to processor-core
@@ -263,7 +306,7 @@ Contains parameters to set up the Logging for inner HTTP clients that are used t
 
 ### Updated
 
-+ bom:4.10
++ bom:4.1.0
 + common:5.1.0-dev-version
 + grpc-lw-data-provider:2.0.0-dev-version
 + processor-core:0.1.0-dev-version

@@ -28,9 +28,6 @@ class Cycle(
     id: Long,
     key: String,
     val name: String,
-    val jiraProjectVersion: BaseVersion,
+    val jiraProjectVersion: SelfRef?,
     val folder: BaseFolder?,
 ) : BaseCycle(id, key)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class BaseVersion(val id: Long)

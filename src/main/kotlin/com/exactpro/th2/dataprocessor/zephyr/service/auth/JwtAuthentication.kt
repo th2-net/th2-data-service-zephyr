@@ -24,19 +24,20 @@ import com.atlassian.jwt.core.writer.JwtClaimsBuilder
 import com.atlassian.jwt.core.writer.NimbusJwtWriterFactory
 import com.atlassian.jwt.httpclient.CanonicalHttpUriRequest
 import io.ktor.client.HttpClient
-import io.ktor.client.features.HttpClientFeature
+import io.ktor.client.plugins.HttpClientPlugin
 import io.ktor.client.request.HttpRequestPipeline
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.util.AttributeKey
 import org.apache.commons.lang3.StringUtils
-import org.apache.http.message.BasicHeaderValueParser
 import org.apache.http.message.ParserCursor
+import org.apache.http.message.TokenParser
 import org.apache.http.util.CharArrayBuffer
 import java.io.UnsupportedEncodingException
 import java.net.URI
 import java.net.URLDecoder
+import java.util.BitSet
 import java.util.concurrent.TimeUnit
 
 class JwtAuthentication internal constructor(
@@ -77,11 +78,36 @@ class JwtAuthentication internal constructor(
         val buffer = CharArrayBuffer(query.length)
         buffer.append(query)
         val cursor = ParserCursor(0, buffer.length)
+        val delimiters = BitSet().apply {
+            QUERY_DELIMITERS.forEach {
+                set(it.code)
+            }
+        }
+        val tokenDelimiter = '='.code
         while (!cursor.atEnd()) {
-            val nameValuePair = BasicHeaderValueParser.INSTANCE.parseNameValuePair(buffer, cursor, QUERY_DELIMITERS)
-            if (!StringUtils.isEmpty(nameValuePair.name)) {
-                val decodedName = urlDecode(nameValuePair.name)
-                val decodedValue = urlDecode(nameValuePair.value)
+            delimiters.set(tokenDelimiter)
+            val name = TokenParser.INSTANCE.parseToken(buffer, cursor, delimiters)
+            if (!StringUtils.isEmpty(name)) {
+                val decodedName = urlDecode(name)
+                // Copied from
+                // org.apache.http.message.BasicHeaderValueParser.parseNameValuePair(CharArrayBuffer, ParserCursor, char[])
+                val value = if (cursor.atEnd()) {
+                    null
+                } else {
+                    val delim = buffer[cursor.pos].code
+                    cursor.updatePos(cursor.pos + 1)
+                    if (delim != tokenDelimiter) {
+                        null
+                    } else {
+                        delimiters.clear(tokenDelimiter)
+                        TokenParser.INSTANCE.parseValue(buffer, cursor, delimiters).also {
+                            if (!cursor.atEnd()) {
+                                cursor.updatePos(cursor.pos + 1)
+                            }
+                        }
+                    }
+                }
+                val decodedValue = urlDecode(value)
                 queryParams.computeIfAbsent(decodedName) { arrayListOf() }.add(decodedValue)
             }
         }
@@ -108,7 +134,7 @@ class JwtAuthentication internal constructor(
             check(expireWindowSeconds > 0) { "expireWindowSeconds must be a positive integer" }
         }
     }
-    companion object Feature : HttpClientFeature<Config, JwtAuthentication> {
+    companion object Feature : HttpClientPlugin<Config, JwtAuthentication> {
         private val QUERY_DELIMITERS = charArrayOf('$')
         private const val ZapiAccessKey = "zapiAccessKey"
         private val HttpHeaders.ZapiAccessKey: String
@@ -128,13 +154,13 @@ class JwtAuthentication internal constructor(
             }
         }
 
-        override fun install(feature: JwtAuthentication, scope: HttpClient) {
+        override fun install(plugin: JwtAuthentication, scope: HttpClient) {
             scope.requestPipeline.intercept(HttpRequestPipeline.State) {
                 val requestPath = context.url.buildString()
-                val jwt = feature.encodeJwt(context.method, requestPath)
+                val jwt = plugin.encodeJwt(context.method, requestPath)
                 with(context) {
                     header(HttpHeaders.Authorization, JwtConstants.HttpRequests.JWT_AUTH_HEADER_PREFIX + jwt)
-                    header(HttpHeaders.ZapiAccessKey, feature.accessKey)
+                    header(HttpHeaders.ZapiAccessKey, plugin.accessKey)
                 }
             }
         }

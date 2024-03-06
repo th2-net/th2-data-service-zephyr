@@ -19,8 +19,9 @@ package com.exactpro.th2.dataprocessor.zephyr.service.api.model
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class AccountInfo(
-    val name: String,
-    val key: String,
+data class AccountInfo(
+    val name: String? = null,
+    val key: String? = null,
+    val accountId: String? = null,
     val displayName: String,
 )

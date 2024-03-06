@@ -18,7 +18,7 @@ dependencyResolutionManagement {
 
         maven {
             name 'Atlassian'
-            url 'https://m2proxy.atlassian.com/repository/public/'
+            url 'https://maven.atlassian.com/content/repositories/atlassian-public/'
         }
     }
 }

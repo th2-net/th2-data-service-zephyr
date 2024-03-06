@@ -24,6 +24,7 @@ import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.VersionCycleKey
 import com.exactpro.th2.dataprocessor.zephyr.grpc.getEventSuspend
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
+import com.exactpro.th2.dataprocessor.zephyr.impl.scale.ZephyrScaleEventProcessorImpl
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Issue
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Project
 import com.exactpro.th2.dataprocessor.zephyr.service.api.model.Version
@@ -90,26 +91,34 @@ class ZephyrEventProcessorImpl(
 
     private suspend fun EventProcessorContext<ZephyrApiService>.processEvent(eventName: String, event: GrpcEvent, executionStatus: BaseExecutionStatus) {
         LOGGER.trace { "Getting information project and versions for event ${event.shortString}" }
-        val issue: Issue = getIssue(eventName)
-        val rootEvent: GrpcEvent? = findRootEvent(event)
-        val folderEvent: GrpcEvent? = if (event.hasParentId() && event.parentId != rootEvent?.id) {
-            dataProvider.getEventSuspend(event.parentId)
-        } else {
-            null
+        val issueKeys = extractIssues(eventName)
+        if (issueKeys.isEmpty()) {
+            LOGGER.warn { "Event name $eventName matched the regex ${configuration.issueRegexp.pattern} but no issue keys were extracted" }
+            return
         }
-        val folderName: String? = folderEvent?.name ?: configuration.folders.asSequence()
-            .filter { it.value.contains(issue.key) }
-            .map { it.key }
-            .firstOrNull()
-        val versionCycleKey: VersionCycleKey = extractVersionCycleKey(rootEvent, issue)
+        LOGGER.info { "Extracted ${issueKeys.size} issue key(s) from '$eventName'" }
+        for (issueKey in issueKeys) {
+            val issue: Issue = getIssue(issueKey)
+            val rootEvent: GrpcEvent? = findRootEvent(event)
+            val folderEvent: GrpcEvent? = if (event.hasParentId() && event.parentId != rootEvent?.id) {
+                dataProvider.getEventSuspend(event.parentId)
+            } else {
+                null
+            }
+            val folderName: String? = folderEvent?.name ?: configuration.folders.asSequence()
+                .filter { it.value.contains(issue.key) }
+                .map { it.key }
+                .firstOrNull()
+            val versionCycleKey: VersionCycleKey = extractVersionCycleKey(rootEvent, issue)
 
-        updateOrCreateExecution(event, issue, versionCycleKey, folderName, executionStatus)
+            updateOrCreateExecution(event, issue, versionCycleKey, folderName, executionStatus)
 
-        configuration.relatedIssuesStrategies.forEach {
-            val strategy = strategies[it]
-            LOGGER.info { "Extracting related issues with strategy ${strategy::class.java.canonicalName}" }
-            strategy.findRelatedFor(services, issue).forEach { relatedIssue ->
-                updateOrCreateExecution(event, relatedIssue, versionCycleKey, folderName, executionStatus)
+            configuration.relatedIssuesStrategies.forEach {
+                val strategy = strategies[it]
+                LOGGER.info { "Extracting related issues with strategy ${strategy::class.java.canonicalName}" }
+                strategy.findRelatedFor(services, issue).forEach { relatedIssue ->
+                    updateOrCreateExecution(event, relatedIssue, versionCycleKey, folderName, executionStatus)
+                }
             }
         }
     }
@@ -193,8 +202,8 @@ class ZephyrEventProcessorImpl(
         }
     }
 
-    private suspend fun EventProcessorContext<ZephyrApiService>.getIssue(eventName: String): Issue {
-        return jira.issueByKey(eventName.toIssueKey())
+    private suspend fun EventProcessorContext<ZephyrApiService>.getIssue(issueKey: String): Issue {
+        return jira.issueByKey(issueKey)
     }
 
     private fun EventProcessorContext<ZephyrApiService>.extractVersionCycleKey(

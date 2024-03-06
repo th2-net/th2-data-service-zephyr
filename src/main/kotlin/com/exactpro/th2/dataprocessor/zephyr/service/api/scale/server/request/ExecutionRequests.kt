@@ -27,6 +27,7 @@ class UpdateExecution(
     val executedBy: String?,
     val assignedTo: String?,
     val environment: String?,
+    val customFields: Map<String, Any>? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -35,6 +36,7 @@ class CreateExecution(
     val version: String,
     val comment: String?,
     val executedBy: String?,
+    val customFields: Map<String, Any>? = null,
 )
 
 class ExecutionCreatedResponse(

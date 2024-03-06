@@ -19,23 +19,25 @@ package com.exactpro.th2.dataprocessor.zephyr
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
-import com.nhaarman.mockitokotlin2.argThat
-import com.nhaarman.mockitokotlin2.isA
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.same
-import com.nhaarman.mockitokotlin2.verify
-import com.nhaarman.mockitokotlin2.verifyZeroInteractions
-import com.nhaarman.mockitokotlin2.whenever
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestCoroutineScope
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.isA
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.same
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.whenever
 import java.time.Instant
 
 @ExperimentalCoroutinesApi
 class TestZephyrEventProcessor {
-    private val testScope = TestCoroutineScope()
+    private val testScope = TestScope()
     private val processorMock = mock<AbstractZephyrProcessor<*>> { }
 
     private val onInfoMock: (Event) -> Unit = mock { }
@@ -55,7 +57,7 @@ class TestZephyrEventProcessor {
 
     @Test
     internal fun `calls onInfo on processed event`() {
-        testScope.runBlockingTest {
+        testScope.runTest {
             val event = GrpcEvent.newBuilder()
                 .setId(EventUtils.toEventID(Instant.now(), "book", "scope", "123"))
                 .build()
@@ -69,13 +71,13 @@ class TestZephyrEventProcessor {
                     type == "ZephyrProcessedEventData" && name.startsWith("Updated test status in zephyr because of event")
                 }
             })
-            verifyZeroInteractions(onErrorMock)
+            verifyNoInteractions(onErrorMock)
         }
     }
 
     @Test
     internal fun `calls onError on exception thrown`() {
-        testScope.runBlockingTest {
+        testScope.runTest {
             val event = GrpcEvent.newBuilder()
                 .setId(EventUtils.toEventID(Instant.now(), "book", "scope", "123"))
                 .build()
@@ -85,7 +87,7 @@ class TestZephyrEventProcessor {
             runCurrent()
 
             verify(onErrorMock).invoke(same(event), isA<IllegalStateException>())
-            verifyZeroInteractions(onInfoMock)
+            verifyNoInteractions(onInfoMock)
         }
     }
 
