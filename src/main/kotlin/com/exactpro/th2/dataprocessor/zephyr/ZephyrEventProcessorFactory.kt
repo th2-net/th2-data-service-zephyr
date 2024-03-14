@@ -148,7 +148,7 @@ class ZephyrEventProcessorFactory : IProcessorFactory {
                 )
 
                 val zephyrApi = zephyrSupplier(
-                    connection.baseUrl,
+                    connection.zephyrUrl,
                     connection.zephyr,
                     httpLogging
                 )
