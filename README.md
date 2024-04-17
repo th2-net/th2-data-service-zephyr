@@ -177,6 +177,10 @@ Contains parameters for synchronization with Zephyr
         type: jira
         extract: VERSION
     ```
++ **cachesConfiguration** - configuration that will be applied to the internal caches inside the zephyr processors (e.g. cycles cache)
+  + **cycle** - configuration for cycle caching
+    + **size** - cache size. Default value is 100.
+    + **expireAfterSeconds** - element expiration time in seconds. Default value is 86400 (1 day).
 
 ##### Strategies (only for Zephyr Squad)
 
