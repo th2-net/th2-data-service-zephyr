@@ -78,7 +78,9 @@ class ZephyrScaleEventProcessorImpl(
 
     @GuardedBy("lock")
     private val cycleCaches: Map<String, LRUCache<CycleCacheKey, Cycle>> = configurations.associate {
-        it.destination to it.cachesConfiguration.cycles.run { LRUCache(size, expireAfterSeconds * 1_000) }
+        it.destination to it.cachesConfiguration.cycles.run {
+            LRUCache(size, expireAfterSeconds * 1_000, invalidateAt = invalidateAt)
+        }
     }
 
     override suspend fun EventProcessorContext<ZephyrScaleApiService>.processEvent(

@@ -20,8 +20,15 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doReturnConsecutively
 import org.mockito.kotlin.mock
-import java.util.function.LongSupplier
+import org.mockito.kotlin.whenever
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 
 class LRUCacheTest {
     @Test
@@ -38,11 +45,26 @@ class LRUCacheTest {
     }
 
     @Test
+    fun `invalidates all keys after specified time`() {
+        val invalidateAt = LocalTime.of(12, 0,0)
+        val time = invalidateAt.atDate(LocalDate.now()).toInstant(ZoneOffset.UTC).plusSeconds(42)
+        val timeSource = mock<Clock>()
+        whenever(timeSource.instant()) doReturn time
+        val cache = LRUCache<String, Int>(size = 10, expireAfterMillis = 1000, timeSource, invalidateAt)
+        cache["key"] = 42
+        assertEquals(42, cache["key"], "unexpected value")
+        // next day
+        whenever(timeSource.instant()) doReturnConsecutively  listOf(time.plus(1, ChronoUnit.DAYS))
+
+        assertNull(cache["key"], "unexpected value")
+    }
+
+    @Test
     fun `does not return value if it is expired`() {
         val expireAfterMillis: Long = 1000
-        val time = System.currentTimeMillis()
-        val timeSource = mock<LongSupplier> {
-            on { asLong } doReturn time doReturn time + expireAfterMillis + 1
+        val time = Instant.now()
+        val timeSource = mock<Clock> {
+            on { instant() } doReturn time doReturn time.plusMillis(expireAfterMillis + 1)
         }
         val cache = LRUCache<String, Int>(size = 10, expireAfterMillis = expireAfterMillis, timeSource)
         cache["key"] = 42

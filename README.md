@@ -181,6 +181,8 @@ Contains parameters for synchronization with Zephyr
   + **cycle** - configuration for cycle caching
     + **size** - cache size. Default value is 100.
     + **expireAfterSeconds** - element expiration time in seconds. Default value is 86400 (1 day).
+    + **invalidateAt** - time in UTC (e.g. 00:00:00) when all values in cache should be invalidated. Repeats every day.
+      By default, `null` meaning no scheduled invalidation is configured
 
 ##### Strategies (only for Zephyr Squad)
 

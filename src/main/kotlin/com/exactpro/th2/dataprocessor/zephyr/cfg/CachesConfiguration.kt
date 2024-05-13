@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.dataprocessor.zephyr.cfg
 
+import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 
 class CachesConfiguration(
@@ -28,4 +29,5 @@ class CachesConfiguration(
 class CacheConfiguration(
     val expireAfterSeconds: Long,
     val size: Int = 100,
+    val invalidateAt: LocalTime? = null,
 )

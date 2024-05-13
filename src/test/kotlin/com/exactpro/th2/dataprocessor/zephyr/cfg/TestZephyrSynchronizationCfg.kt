@@ -24,6 +24,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.features.logging.LogLevel
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.time.LocalTime
 
 class TestZephyrSynchronizationCfg {
     private val mapper: ObjectMapper = ZephyrSynchronizationCfg.MAPPER
@@ -249,6 +250,65 @@ class TestZephyrSynchronizationCfg {
         }
         with(cfg.httpLogging) {
             assertEquals(LogLevel.ALL, level)
+        }
+    }
+
+    @Test
+    fun `deserialize cache configuration`() {
+        val data = """
+        {
+          "connection": {
+            "baseUrl": "https://your.jira.address.com",
+            "jira": {
+              "username": "jira-user",
+              "key": "your password"
+            }
+          },
+          "dataService": {
+            "name": "ZephyrService",
+            "versionMarker": "0.0.1"
+          },
+          "syncParameters": {
+            "issueFormat": "QAP_\\d+",
+            "delimiter": "|",
+            "statusMapping": {
+              "SUCCESS": "PASS",
+              "FAILED": "WIP"
+            },
+            "jobAwaitTimeout": 1000,
+            "cachesConfiguration": {
+              "cycles": {
+                "expireAfterSeconds": 86400,
+                "size": 200,
+                "invalidateAt": "00:00:00"
+              }
+            }
+          },
+          "httpLogging": {
+            "level": "ALL"
+          }
+        }
+        """.trimIndent()
+        val cfg = mapper.readValue<ZephyrSynchronizationCfg>(data)
+        assertEquals(1, cfg.syncParameters.size)
+        with(cfg.syncParameters.first()) {
+            assertEquals("QAP_\\d+", issueRegexp.pattern)
+            assertEquals('|', delimiter)
+            assertEquals("PASS", statusMapping[EventStatus.SUCCESS])
+            assertEquals("WIP", statusMapping[EventStatus.FAILED])
+            assertEquals(1000, jobAwaitTimeout)
+            assertEquals(
+                86400,
+                cachesConfiguration.cycles.expireAfterSeconds,
+            )
+            assertEquals(
+                200,
+                cachesConfiguration.cycles.size,
+            )
+            assertEquals(
+                LocalTime.MIDNIGHT,
+                cachesConfiguration.cycles.invalidateAt,
+            )
         }
     }
 }
