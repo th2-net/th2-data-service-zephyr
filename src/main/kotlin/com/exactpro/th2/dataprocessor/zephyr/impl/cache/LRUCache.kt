@@ -32,6 +32,7 @@ internal class LRUCache<K, V>(
     private val timeSource: Clock = Clock.systemUTC(),
     invalidateAt: LocalTime? = null,
 ) {
+    @Volatile
     private var nextInvalidateAt: Instant
     init {
         require(size > 0) { "size must be positive but was $size" }

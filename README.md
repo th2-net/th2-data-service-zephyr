@@ -1,4 +1,4 @@
-# Zephyr data processor (0.3.0)
+# Zephyr data processor (0.4.0)
 
 Zephyr data processor synchronizes the test in th2 with Zephyr Squad and Zephyr Scale.
 It searches for events that match format in the configuration and updates test executions.
@@ -276,6 +276,12 @@ spec:
 ```
 
 # Changes
+
+## v0.4.0
+
+### Added
+
++ Parameters to configure when cycle cache for Zephyr Scale processor is invalidated. Please refer to [configuration block](#configuration).
 
 ## v0.3.0
 
