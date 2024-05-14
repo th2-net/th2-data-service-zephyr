@@ -178,7 +178,7 @@ Contains parameters for synchronization with Zephyr
         extract: VERSION
     ```
 + **cachesConfiguration** - configuration that will be applied to the internal caches inside the zephyr processors (e.g. cycles cache)
-  + **cycle** - configuration for cycle caching
+  + **cycles** - configuration for cycle caching
     + **size** - cache size. Default value is 100.
     + **expireAfterSeconds** - element expiration time in seconds. Default value is 86400 (1 day).
     + **invalidateAt** - time in UTC (e.g. 00:00:00) when all values in cache should be invalidated. Repeats every day.
