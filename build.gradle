@@ -5,8 +5,8 @@ plugins {
     id 'java'
     id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
     id "org.jetbrains.kotlin.kapt" version "$kotlin_version"
-    id 'com.palantir.docker' version '0.25.0'
     id 'application'
+    id 'com.exactpro.th2.gradle.component' version '0.1.1'
 }
 
 group 'com.exactpro.th2'
@@ -27,8 +27,6 @@ ext {
 }
 
 dependencies {
-    // BOM with external dependencies restrictions
-    api platform('com.exactpro.th2:bom:4.5.0')
 
     // the library for interaction with infra API
     implementation 'com.exactpro.th2:common:5.3.2-dev'
@@ -77,38 +75,6 @@ test {
     }
 }
 
-jar {
-    manifest {
-        attributes(
-                'Created-By':               "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
-                'Specification-Title':      '',
-                'Specification-Vendor':     'Exactpro Systems LLC',
-                'Implementation-Title':     project.archivesBaseName,
-                'Implementation-Vendor':    'Exactpro Systems LLC',
-                'Implementation-Vendor-Id': 'com.exactpro',
-                'Implementation-Version':   project.version
-        )
-    }
-}
-
 application {
     mainClass.set('com.exactpro.th2.processor.MainKt')
-}
-
-applicationName = 'service'
-
-distTar {
-    archiveFileName.set("${applicationName}.tar")
-}
-
-dockerPrepare {
-    dependsOn distTar
-}
-
-docker {
-    copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
-}
-
-dependencyLocking {
-    lockAllConfigurations()
 }
