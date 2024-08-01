@@ -80,6 +80,11 @@ class EventProcessorCfg(
      * Mapping between custom field to set in execution and the value it should have
      */
     val customFields: Map<String, CustomFieldExtraction> = emptyMap(),
+
+    /**
+     * Configuration that will be applied to the internal caches inside the zephyr processors (e.g. cycles cache)
+     */
+    val cachesConfiguration: CachesConfiguration = CachesConfiguration(),
 ) {
     val issueRegexp: Regex = issueFormat.toPattern().toRegex()
     init {

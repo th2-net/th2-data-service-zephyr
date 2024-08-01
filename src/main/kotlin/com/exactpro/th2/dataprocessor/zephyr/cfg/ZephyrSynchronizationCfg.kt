@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.client.plugins.logging.LogLevel
 
@@ -37,6 +38,7 @@ class ZephyrSynchronizationCfg(
     }
     companion object {
         val MAPPER: ObjectMapper = jacksonObjectMapper()
+            .registerModules(JavaTimeModule())
             .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
     }
 }
