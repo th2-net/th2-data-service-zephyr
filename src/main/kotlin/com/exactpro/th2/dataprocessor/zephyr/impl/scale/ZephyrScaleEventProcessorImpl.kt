@@ -20,6 +20,7 @@ import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.dataprocessor.zephyr.cfg.EventProcessorCfg
 import com.exactpro.th2.dataprocessor.zephyr.cfg.TestExecutionMode
 import com.exactpro.th2.dataprocessor.zephyr.impl.AbstractZephyrProcessor
+import com.exactpro.th2.dataprocessor.zephyr.impl.cache.LRUCache
 import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.CustomValueExtractor
 import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.ExtractionContext
 import com.exactpro.th2.dataprocessor.zephyr.impl.scale.extractors.createCustomValueExtractors
@@ -38,7 +39,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import mu.KotlinLogging
-import org.apache.commons.collections4.map.LRUMap
 import javax.annotation.concurrent.GuardedBy
 
 class ZephyrScaleEventProcessorImpl(
@@ -77,7 +77,11 @@ class ZephyrScaleEventProcessorImpl(
     private val lock = Mutex()
 
     @GuardedBy("lock")
-    private val cycleCache = LRUMap<CycleCacheKey, Cycle>(100)
+    private val cycleCaches: Map<String, LRUCache<CycleCacheKey, Cycle>> = configurations.associate {
+        it.destination to it.cachesConfiguration.cycles.run {
+            LRUCache(size, expireAfterSeconds * 1_000, invalidateAt = invalidateAt)
+        }
+    }
 
     override suspend fun EventProcessorContext<ZephyrScaleApiService>.processEvent(
         eventName: String,
@@ -167,6 +171,7 @@ class ZephyrScaleEventProcessorImpl(
         // We cache the result because the search for cycle by name takes a lot of time
         val cacheKey = CycleCacheKey(project.id, version.name, cycleName)
         return lock.withLock {
+            val cycleCache = cycleCaches.getValue(configuration.destination)
             val cachedCycle = cycleCache[cacheKey]
             cachedCycle?.apply { LOGGER.trace { "Cycle cache hit. Key: $cacheKey, Value: $key ($name)" } }
                 ?: zephyr.getCycle(project, version, folder = null, cycleName)?.also { cycleCache[cacheKey] = it }

@@ -1,4 +1,4 @@
-# Zephyr data processor (0.3.0)
+# Zephyr data processor (0.4.0)
 
 Zephyr data processor synchronizes the test in th2 with Zephyr Squad and Zephyr Scale.
 It searches for events that match format in the configuration and updates test executions.
@@ -177,6 +177,12 @@ Contains parameters for synchronization with Zephyr
         type: jira
         extract: VERSION
     ```
++ **cachesConfiguration** - configuration that will be applied to the internal caches inside the zephyr processors (e.g. cycles cache)
+  + **cycles** - configuration for cycle caching
+    + **size** - cache size. Default value is 100.
+    + **expireAfterSeconds** - element expiration time in seconds. Default value is 86400 (1 day).
+    + **invalidateAt** - time in UTC (e.g. 00:00:00) when all values in cache should be invalidated. Repeats every day.
+      By default, `null` meaning no scheduled invalidation is configured
 
 ##### Strategies (only for Zephyr Squad)
 
@@ -270,6 +276,12 @@ spec:
 ```
 
 # Changes
+
+## v0.4.0
+
+### Added
+
++ Parameters to configure when cycle cache for Zephyr Scale processor is invalidated. Please refer to [configuration block](#configuration).
 
 ## v0.3.0
 
