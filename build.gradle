@@ -32,7 +32,7 @@ dependencies {
     implementation 'com.exactpro.th2:common:5.3.2-dev'
     implementation 'com.exactpro.th2:common-utils:2.1.1-dev'
     implementation 'com.exactpro.th2:grpc-lw-data-provider:2.0.1-dev'
-    implementation 'com.exactpro.th2:processor-core:0.1.0-dev-version-1-5867969610-57d9334-SNAPSHOT'
+    implementation 'com.exactpro.th2:processor-core:0.3.0-dev-version-1-8370762521-9e07163-SNAPSHOT'
 
     // Auto service
     compileOnly 'com.google.auto.service:auto-service-annotations:1.1.1'

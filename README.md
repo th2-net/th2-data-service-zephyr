@@ -292,6 +292,10 @@ Contains parameters to set up the Logging for inner HTTP clients that are used t
 
 + Parameters to configure when cycle cache for Zephyr Scale processor is invalidated. Please refer to [configuration block](#configuration).
 
+### Updated
+
++ processor-core:0.3.0-dev
+
 ## v1.0.0
 
 ### Added
